@@ -5,6 +5,7 @@ const assert = require('node:assert/strict')
 const claude = require('../server/agents/claude')
 const antigravity = require('../server/agents/antigravity')
 const { buildPrompt } = require('../server/handoff')
+const { QUOTA_ERROR_RE } = require('../server/orchestrator')
 
 function collect(adapter, lines) {
   const events = []
@@ -135,4 +136,27 @@ test('handoff: 세션이 없으면(폴더 변경 등) 자기 대화까지 전체
   const { handoffCount, prompt } = buildPrompt(c, 'claude', 3)
   assert.equal(handoffCount, 2)
   assert.ok(!prompt.includes('폴더 변경'))
+})
+
+test('failover: 쿼터/사용량 초과/Rate limit 에러 패턴을 정확히 감지한다', () => {
+  const quotaErrors = [
+    'rate_limit_error: You have exceeded your current quota',
+    'Error: credit balance is too low to complete this request',
+    'ResourceExhausted: 429 Resource has been exhausted (e.g. check quota)',
+    'Claude was overloaded: please try again later',
+    'insufficient_quota: check your plan and billing details',
+    'You have hit your limit for today'
+  ]
+  for (const err of quotaErrors) {
+    assert.ok(QUOTA_ERROR_RE.test(err), `패턴 매칭 성공: ${err}`)
+  }
+
+  const normalErrors = [
+    'SyntaxError: Unexpected token',
+    'File not found: calc.js',
+    'Command failed with exit code 1'
+  ]
+  for (const err of normalErrors) {
+    assert.ok(!QUOTA_ERROR_RE.test(err), `일반 에러는 쿼터로 오인하지 않음: ${err}`)
+  }
 })

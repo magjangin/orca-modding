@@ -193,6 +193,7 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
       for (const key of ['relayPrompt', 'claudePath', 'antigravityPath']) {
         if (typeof body[key] === 'string') next[key] = body[key].trim()
       }
+      if (typeof body.autoFailover === 'boolean') next.autoFailover = body.autoFailover
       if (!next.relayPrompt) next.relayPrompt = store.DEFAULT_SETTINGS.relayPrompt
       settings = next
       store.saveSettings(settings)

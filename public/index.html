@@ -132,6 +132,10 @@
           <span>Antigravity CLI(agy) 경로</span>
           <input id="set-agy" type="text" spellcheck="false" />
         </label>
+        <label class="field checkbox-field" style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:8px;">
+          <input id="set-failover" type="checkbox" style="width:auto; cursor:pointer;" />
+          <span><b>쿼터/사용량 소진 시 자동 바톤터치</b> (상대 에이전트가 이어서 진행)</span>
+        </label>
         <p class="note">대화 저장 위치: <code id="set-datadir"></code></p>
         <menu>
           <button value="cancel" class="ghost-btn" formnovalidate>닫기</button>

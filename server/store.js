@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   lastCwd: os.homedir(),
   claudePath: '',
   antigravityPath: '',
+  autoFailover: true,
   relayPrompt:
     '위 공유 컨텍스트에 있는 상대 에이전트의 답변을 검토해줘. 틀리거나 빠진 부분이 있으면 바로잡고, 남은 작업이 있으면 이어서 진행해줘.'
 }

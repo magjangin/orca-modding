@@ -7,6 +7,8 @@ const { buildPrompt } = require('./handoff')
 
 const OTHER = { claude: 'antigravity', antigravity: 'claude' }
 const MISSING_SESSION_RE = /no conversation found|conversation .*not found|session .*not found|could not find|does not exist/i
+// 쿼터/사용량 초과/Rate limit/잔액 부족 감지 패턴
+const QUOTA_ERROR_RE = /quota|rate.?limit|exceeded|insufficient_quota|credit.?balance|too low|resource.?exhausted|overloaded|usage limit|hit your limit/i
 const FLUSH_MS = 50
 
 class HttpError extends Error {
@@ -73,7 +75,7 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
     broadcast({ type: 'message', convId, message: userMsg })
     broadcast({ type: 'message', convId, message: asst })
     broadcast({ type: 'conv-list', conversations: store.list() })
-    startTurn(conv, asst, userIndex, prompt, { prefs, relayRounds, retried: false })
+    startTurn(conv, asst, userIndex, prompt, { prefs, relayRounds, retried: false, failedOver: Boolean(body.failedOver) })
     return { userId: userMsg.id, assistantId: asst.id }
   }
 
@@ -243,6 +245,36 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
           }
         }, 400)
         relayTimers.set(conv.id, timer)
+      } else if (asst.status === 'error' && !ctx.failedOver && store.get(conv.id)) {
+        const settings = getSettings()
+        const isQuota = QUOTA_ERROR_RE.test(`${ev.error || ''} ${ev.stderr || ''}`)
+        const otherAgent = OTHER[agent]
+        const otherInfo = agents[otherAgent]
+        if (settings.autoFailover !== false && isQuota && otherInfo && otherInfo.binary) {
+          const timer = setTimeout(() => {
+            relayTimers.delete(conv.id)
+            try {
+              broadcast({
+                type: 'toast',
+                convId: conv.id,
+                level: 'warn',
+                message: `⚠️ ${agent === 'claude' ? 'Claude' : 'Antigravity'} 쿼터/사용량 제한 감지 → ${otherAgent === 'claude' ? 'Claude' : 'Antigravity'}가 이어서 진행합니다.`
+              })
+              send(conv.id, {
+                agent: otherAgent,
+                text: `${agent === 'claude' ? 'Claude' : 'Antigravity'}가 사용량/쿼터 한도에 도달하여 중단되었습니다. 위 대화와 맥락을 이어서 진행해줘.`,
+                prefs: ctx.prefs,
+                relayRounds: ctx.relayRounds,
+                auto: true,
+                failedOver: true
+              })
+            } catch (err) {
+              broadcast({ type: 'toast', convId: conv.id, level: 'error', message: `자동 바톤터치 실패: ${err.message}` })
+              publishRunning(conv.id)
+            }
+          }, 600)
+          relayTimers.set(conv.id, timer)
+        }
       }
       publishRunning(conv.id)
     }
@@ -274,4 +306,4 @@ function clipOutput(value) {
   return s.length > 20000 ? s.slice(0, 20000) + `\n…(${s.length - 20000}자 생략)` : s
 }
 
-module.exports = { createOrchestrator, HttpError }
+module.exports = { createOrchestrator, HttpError, QUOTA_ERROR_RE }

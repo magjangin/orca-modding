@@ -594,6 +594,7 @@
     $('#set-relay').value = state.settings.relayPrompt || ''
     $('#set-claude').value = state.settings.claudePath || ''
     $('#set-agy').value = state.settings.antigravityPath || ''
+    $('#set-failover').checked = state.settings.autoFailover !== false
     $('#set-claude').placeholder = (state.agents.claude || {}).path || '자동 감지 (PATH의 claude)'
     $('#set-agy').placeholder = (state.agents.antigravity || {}).path || '자동 감지 (PATH의 agy)'
     $('#set-datadir').textContent = state.dataDir
@@ -605,7 +606,8 @@
       const res = await api('POST', '/api/settings', {
         relayPrompt: $('#set-relay').value,
         claudePath: $('#set-claude').value,
-        antigravityPath: $('#set-agy').value
+        antigravityPath: $('#set-agy').value,
+        autoFailover: $('#set-failover').checked
       })
       state.settings = res.settings
       state.agents = res.agents
