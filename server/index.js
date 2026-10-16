@@ -212,6 +212,27 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
       return json(res, 200, { path: picked })
     }
 
+    if (parts[0] === 'list-repos' && method === 'GET') {
+      const root = validDir(settings.lastCwd) && path.basename(settings.lastCwd).toLowerCase() === 'repos'
+        ? settings.lastCwd
+        : fs.existsSync('H:\\source\\repos')
+          ? 'H:\\source\\repos'
+          : null
+      const list = []
+      if (root) {
+        try {
+          const entries = fs.readdirSync(root, { withFileTypes: true })
+          for (const ent of entries) {
+            if (ent.isDirectory() && !ent.name.startsWith('.')) {
+              list.push({ name: ent.name, path: path.join(root, ent.name) })
+            }
+          }
+          list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        } catch {}
+      }
+      return json(res, 200, { root, repos: list })
+    }
+
     if (parts[0] === 'check-folder' && method === 'POST') {
       const body = await readBody(req)
       const p = typeof body.path === 'string' ? path.resolve(body.path.trim().replace(/^"|"$/g, '')) : ''

@@ -550,13 +550,53 @@
     return res.path
   }
 
+  let allRepos = []
+  async function loadReposList() {
+    try {
+      const data = await api('GET', '/api/list-repos')
+      allRepos = data.repos || []
+      const section = $('#folder-repos-section')
+      if (!allRepos.length) {
+        section.hidden = true
+        return
+      }
+      section.hidden = false
+      $('#folder-repos-label').textContent = `${data.root || 'H:\\source\\repos'} 하위 프로젝트`
+      renderReposList('')
+    } catch {
+      $('#folder-repos-section').hidden = true
+    }
+  }
+
+  function renderReposList(filterText) {
+    const listEl = $('#folder-repos-list')
+    const q = filterText.toLowerCase().trim()
+    const filtered = allRepos.filter((r) => !q || r.name.toLowerCase().includes(q))
+    if (!filtered.length) {
+      listEl.innerHTML = '<div style="font-size:12px; color:var(--faint); padding:6px 10px;">일치하는 프로젝트가 없습니다</div>'
+      return
+    }
+    listEl.innerHTML = filtered
+      .map(
+        (r) => `<button type="button" class="recent repo-item" data-path="${esc(r.path)}" style="padding:4px 8px; border-radius:6px;">
+          <b>${esc(r.name)}</b>
+        </button>`
+      )
+      .join('')
+    listEl.querySelectorAll('.repo-item').forEach((b) =>
+      b.addEventListener('click', () => {
+        $('#folder-input').value = b.dataset.path
+      })
+    )
+  }
+
   function openFolderDialog() {
     const dlg = $('#folder-dialog')
     const input = $('#folder-input')
     input.value = currentCwd() || ''
     const recent = [...new Set(state.conversations.map((c) => c.cwd).filter(Boolean))].slice(0, 8)
     $('#folder-recent').innerHTML = recent.length
-      ? '<div class="recent-label">최근 폴더</div>' +
+      ? '<div class="recent-label">최근 작업 폴더</div>' +
         recent.map((p) => `<button type="button" class="recent" data-path="${esc(p)}" title="${esc(p)}"><b>${esc(baseName(p))}</b><span>${esc(p)}</span></button>`).join('')
       : ''
     $('#folder-recent').querySelectorAll('.recent').forEach((b) =>
@@ -564,6 +604,8 @@
         input.value = b.dataset.path
       })
     )
+    $('#folder-repos-filter').value = ''
+    loadReposList()
     $('#folder-warn').hidden = !(state.current && state.current.messages.length)
     dlg.showModal()
     input.focus()
@@ -781,6 +823,9 @@
     $('#toggle-sidebar').addEventListener('click', () => document.body.classList.toggle('sidebar-open'))
     $('#scrim').addEventListener('click', () => document.body.classList.remove('sidebar-open'))
     $('#folder-chip').addEventListener('click', openFolderDialog)
+    $('#folder-repos-filter').addEventListener('input', (e) => {
+      renderReposList(e.target.value)
+    })
     $('#folder-browse').addEventListener('click', async () => {
       try {
         const picked = await browseFolder($('#folder-input').value || currentCwd())

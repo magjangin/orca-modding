@@ -14,8 +14,11 @@ fs.mkdirSync(CONV_DIR, { recursive: true })
 const cache = new Map()
 const pending = new Map()
 
+const DEFAULT_REPOS_ROOT = 'H:\\source\\repos'
+const initialCwd = fs.existsSync(DEFAULT_REPOS_ROOT) ? DEFAULT_REPOS_ROOT : os.homedir()
+
 const DEFAULT_SETTINGS = {
-  lastCwd: os.homedir(),
+  lastCwd: initialCwd,
   claudePath: '',
   antigravityPath: '',
   autoFailover: true,
