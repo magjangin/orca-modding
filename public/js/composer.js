@@ -46,7 +46,7 @@ function renderAttachments() {
     .map(
       (a, i) => `
     <div class="attach-chip" data-index="${i}">
-      <img src="${a.url}" alt="${a.name || '첨부 이미지'}" />
+      <img src="${a.previewUrl || a.url}" alt="${a.name || '첨부 이미지'}" loading="lazy" />
       <span class="attach-chip-name" title="${a.name || '이미지'}">${a.name || '이미지'}</span>
       <button type="button" class="attach-chip-remove" data-index="${i}" title="삭제">×</button>
     </div>`
@@ -82,6 +82,7 @@ async function uploadFile(file) {
       name: file.name || 'screenshot.png',
       data: dataUrl
     })
+    res.previewUrl = dataUrl
     currentAttachments.push(res)
     renderAttachments()
   } catch (err) {

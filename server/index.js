@@ -240,9 +240,12 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
       }
       const url = new URL(req.url, `http://${hostHeader}`)
       if (url.pathname.startsWith('/api/')) {
-        // Why: 브라우저의 다른 사이트가 localhost API를 몰래 호출해 에이전트를 돌리지 못하게 토큰을 요구한다.
-        const given = req.headers['x-duo-token'] || url.searchParams.get('token')
-        if (given !== token) return json(res, 401, { error: '토큰이 맞지 않습니다. 페이지를 새로고침하세요' })
+        // /api/attachments/ 는 img 태그에서 직접 로드되므로 토큰 체크 예외 (파일명은 UUID 검증됨)
+        if (!url.pathname.startsWith('/api/attachments/')) {
+          // Why: 브라우저의 다른 사이트가 localhost API를 몰래 호출해 에이전트를 돌리지 못하게 토큰을 요구한다.
+          const given = req.headers['x-duo-token'] || url.searchParams.get('token')
+          if (given !== token) return json(res, 401, { error: '토큰이 맞지 않습니다. 페이지를 새로고침하세요' })
+        }
         return await handleApi(req, res, url)
       }
       if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
