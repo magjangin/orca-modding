@@ -1142,18 +1142,16 @@ details.thinking .md {
   display: inline-block;
 }
 .custom-dropdown-menu {
+  display: none;
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
   min-width: 130px;
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid color-mix(in srgb, var(--border-strong) 85%, transparent);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
   padding: 5px;
-  display: flex;
   flex-direction: column;
   gap: 2px;
   z-index: 100;
@@ -1162,7 +1160,19 @@ details.thinking .md {
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
+@supports (backdrop-filter: blur(16px)) {
+  .custom-dropdown-menu {
+    background: color-mix(in srgb, var(--panel) 85%, transparent);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+}
+#relay-dropdown-wrap .custom-dropdown-menu {
+  left: auto;
+  right: 0;
+}
 .custom-dropdown-wrap.open .custom-dropdown-menu {
+  display: flex;
   opacity: 1;
   transform: translateY(0) scale(1);
   pointer-events: auto;
