@@ -22,6 +22,9 @@ function assistantText(msg) {
   }
   let text = out.join('\n\n')
   if (tools.length) text += `\n(사용한 도구: ${[...new Set(tools)].join(', ')})`
+  if (msg.meta && msg.meta.deniedTools && msg.meta.deniedTools.length) {
+    text += `\n(권한 부족으로 실행 차단된 도구: ${[...new Set(msg.meta.deniedTools)].join(', ')})`
+  }
   if (msg.status === 'stopped') text += '\n(사용자가 중간에 멈춤)'
   if (msg.status === 'error') text += `\n(오류로 끝남: ${msg.error || ''})`
   return text.trim()

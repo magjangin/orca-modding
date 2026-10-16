@@ -28,8 +28,8 @@ export const state = {
   dataDir: '',
   target: 'claude',
   prefs: {
-    claude: { model: 'default', effort: 'default', permission: 'edit' },
-    antigravity: { model: 'default', effort: 'default', permission: 'edit' }
+    claude: { model: 'haiku', effort: 'medium', permission: 'edit' },
+    antigravity: { model: 'gemini-3.8-flash', effort: 'medium', permission: 'edit' }
   },
   autoAlternate: true,
   relayRounds: 0
@@ -43,13 +43,21 @@ export function loadPrefs() {
       for (const a of AGENTS) if (saved.prefs && saved.prefs[a]) Object.assign(state.prefs[a], saved.prefs[a])
       if (typeof saved.autoAlternate === 'boolean') state.autoAlternate = saved.autoAlternate
     }
+    // 모델·노력 고정: Claude Haiku 5.5 (중간) + Antigravity Gemini 3.8 Flash (중간)
+    if (!saved || saved.pinnedModel !== 'haiku-flash-med') {
+      state.prefs.claude.model = 'haiku'
+      state.prefs.claude.effort = 'medium'
+      state.prefs.antigravity.model = 'gemini-3.8-flash'
+      state.prefs.antigravity.effort = 'medium'
+      savePrefs()
+    }
   } catch {}
 }
 export function savePrefs() {
   try {
     localStorage.setItem(
       'duo.prefs',
-      JSON.stringify({ target: state.target, prefs: state.prefs, autoAlternate: state.autoAlternate })
+      JSON.stringify({ target: state.target, prefs: state.prefs, autoAlternate: state.autoAlternate, pinnedModel: 'haiku-flash-med' })
     )
   } catch {}
 }
