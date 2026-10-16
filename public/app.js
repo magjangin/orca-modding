@@ -427,11 +427,28 @@
 
     const info = state.agents[t] || {}
     const models = (info.models && info.models.length ? info.models : [{ id: 'default', label: '기본값' }]).slice()
-    const pref = state.prefs[t]
-    if (!models.some((m) => m.id === pref.model)) models.push({ id: pref.model, label: pref.model })
-    $('#model-select').innerHTML = models
-      .map((m) => `<option value="${esc(m.id)}"${m.id === pref.model ? ' selected' : ''}>${esc(m.label)}</option>`)
-      .join('')
+    const modelBtn = $('#model-dropdown-btn')
+    const curModel = models.find((m) => m.id === pref.model) || models[0] || { id: 'default', label: '기본값' }
+    if (modelBtn) $('#model-label').textContent = curModel.label
+    const modelMenu = $('#model-dropdown-menu')
+    if (modelMenu) {
+      modelMenu.innerHTML = models.map(
+        (m) => `<button type="button" class="custom-dropdown-item${m.id === pref.model ? ' selected' : ''}" data-id="${esc(m.id)}">
+          <span>${esc(m.label)}</span>
+          <svg class="check-icon" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>`
+      ).join('')
+      modelMenu.querySelectorAll('.custom-dropdown-item').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation()
+          state.prefs[state.target].model = item.dataset.id
+          savePrefs()
+          renderComposer()
+          $('#model-dropdown-wrap').classList.remove('open')
+        })
+      })
+    }
+
     const curPerm = PERMISSIONS.find((p) => p.id === pref.permission) || PERMISSIONS[1]
     const permBtn = $('#perm-dropdown-btn')
     if (permBtn) {
@@ -462,7 +479,35 @@
 
     $('#alt-toggle').classList.toggle('on', state.autoAlternate)
     $('#alt-toggle').setAttribute('aria-pressed', String(state.autoAlternate))
-    $('#relay-select').value = String(state.relayRounds)
+
+    const RELAYS = [
+      { id: 0, label: '핑퐁 끔' },
+      { id: 1, label: '핑퐁 1회' },
+      { id: 2, label: '핑퐁 2회' },
+      { id: 3, label: '핑퐁 3회' },
+      { id: 5, label: '핑퐁 5회' }
+    ]
+    const curRelay = RELAYS.find((r) => r.id === state.relayRounds) || { id: state.relayRounds, label: `핑퐁 ${state.relayRounds}회` }
+    const relayBtn = $('#relay-dropdown-btn')
+    if (relayBtn) $('#relay-label').textContent = curRelay.label
+    const relayMenu = $('#relay-dropdown-menu')
+    if (relayMenu) {
+      relayMenu.innerHTML = RELAYS.map(
+        (r) => `<button type="button" class="custom-dropdown-item${r.id === state.relayRounds ? ' selected' : ''}" data-id="${r.id}">
+          <span>${r.label}</span>
+          <svg class="check-icon" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>`
+      ).join('')
+      relayMenu.querySelectorAll('.custom-dropdown-item').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation()
+          state.relayRounds = Number(item.dataset.id) || 0
+          renderComposer()
+          $('#relay-dropdown-wrap').classList.remove('open')
+          if (state.relayRounds) toast(`답변이 끝나면 상대에게 ${state.relayRounds}번 자동으로 넘겨 검토시킵니다`)
+        })
+      })
+    }
 
     const running = state.current && isRunning(state.current.id)
     const btn = $('#send')
@@ -821,30 +866,31 @@
         input.focus()
       })
     )
-    $('#model-select').addEventListener('change', (e) => {
-      state.prefs[state.target].model = e.target.value
-      savePrefs()
-    })
-    const permWrap = $('#perm-dropdown-wrap')
-    const permBtn = $('#perm-dropdown-btn')
-    if (permBtn && permWrap) {
-      permBtn.addEventListener('click', (e) => {
+    function setupDropdown(wrapId, btnId) {
+      const wrap = $(`#${wrapId}`)
+      const btn = $(`#${btnId}`)
+      if (!wrap || !btn) return
+      btn.addEventListener('click', (e) => {
         e.stopPropagation()
-        permWrap.classList.toggle('open')
-      })
-      document.addEventListener('click', (e) => {
-        if (!permWrap.contains(e.target)) permWrap.classList.remove('open')
+        const wasOpen = wrap.classList.contains('open')
+        document.querySelectorAll('.custom-dropdown-wrap.open').forEach((w) => w.classList.remove('open'))
+        if (!wasOpen) wrap.classList.add('open')
       })
     }
+    setupDropdown('model-dropdown-wrap', 'model-dropdown-btn')
+    setupDropdown('perm-dropdown-wrap', 'perm-dropdown-btn')
+    setupDropdown('relay-dropdown-wrap', 'relay-dropdown-btn')
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('.custom-dropdown-wrap.open').forEach((wrap) => {
+        if (!wrap.contains(e.target)) wrap.classList.remove('open')
+      })
+    })
+
     $('#alt-toggle').addEventListener('click', () => {
       state.autoAlternate = !state.autoAlternate
       savePrefs()
       renderComposer()
       toast(state.autoAlternate ? '보낼 때마다 대상이 자동으로 바뀝니다' : '자동 번갈기를 껐습니다')
-    })
-    $('#relay-select').addEventListener('change', (e) => {
-      state.relayRounds = Number(e.target.value) || 0
-      if (state.relayRounds) toast(`답변이 끝나면 상대에게 ${state.relayRounds}번 자동으로 넘겨 검토시킵니다`)
     })
     $('#new-chat').addEventListener('click', newConversation)
     $('#toggle-sidebar').addEventListener('click', () => document.body.classList.toggle('sidebar-open'))
