@@ -42,6 +42,12 @@ export function loadPrefs() {
       if (AGENTS.includes(saved.target)) state.target = saved.target
       for (const a of AGENTS) if (saved.prefs && saved.prefs[a]) Object.assign(state.prefs[a], saved.prefs[a])
       if (typeof saved.autoAlternate === 'boolean') state.autoAlternate = saved.autoAlternate
+      // 권한 동기화: 한 에이전트에서 선택한 권한(전체 자동 등)을 양쪽 모두에 일관되게 유지
+      const perm =
+        (saved.prefs && (saved.prefs[state.target]?.permission || saved.prefs.claude?.permission || saved.prefs.antigravity?.permission)) ||
+        state.prefs[state.target].permission ||
+        'edit'
+      for (const a of AGENTS) state.prefs[a].permission = perm
     }
     // 모델·노력 고정: Claude Haiku 5.5 (중간) + Antigravity Gemini 3.8 Flash (중간)
     if (!saved || saved.pinnedModel !== 'haiku-flash-med') {

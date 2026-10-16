@@ -178,8 +178,10 @@ export function bindComposer() {
       icon: ICONS.perm,
       title: '권한',
       onPick: (id) => {
-        setPref('permission', id)
-        if (id === 'full') toast(`${LABEL[state.target]}가 확인 없이 명령까지 실행합니다`, 'warn')
+        for (const a of AGENTS) state.prefs[a].permission = id
+        savePrefs()
+        renderComposer()
+        if (id === 'full') toast('Claude와 Antigravity 모두 확인 없이 명령까지 실행합니다', 'warn')
       }
     }),
     relay: createDropdown('relay', {
