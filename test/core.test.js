@@ -16,7 +16,7 @@ const { fromCmdShim } = require('../server/agents/binary')
 const { versionAtLeast } = require('../server/agents')
 const { explorerArg } = require('../server/desktop')
 const { buildPrompt } = require('../server/handoff')
-const { QUOTA_ERROR_RE, normalizePrefs, createOrchestrator } = require('../server/orchestrator')
+const { QUOTA_ERROR_RE, normalizePrefs, createOrchestrator, isRelayDone } = require('../server/orchestrator')
 const store = require('../server/store')
 
 function collect(adapter, lines) {
@@ -467,5 +467,14 @@ test('attachments: 첨부 이미지가 있으면 프롬프트에 경로를 포�
   )
   const p2 = buildPrompt(c2, 'antigravity', 2).prompt
   assert.match(p2, /\[사용자 → Claude\]\n\[첨부 이미지: C:\\img\\1\.png\]/)
+})
+
+test('relay: [DONE] 조기 종료 트리거를 감지한다', () => {
+  assert.ok(isRelayDone({ parts: [{ kind: 'text', text: '모든 수정 및 검증이 완료되었습니다.\n[DONE]' }] }))
+  assert.ok(isRelayDone({ parts: [{ kind: 'text', text: '[done]' }] }))
+  assert.ok(isRelayDone({ parts: [{ kind: 'text', text: '작업 완료. [DONE] ' }] }))
+  assert.ok(!isRelayDone({ parts: [{ kind: 'text', text: '진행 중입니다 (not done yet)' }] }))
+  assert.ok(!isRelayDone({ parts: [{ kind: 'tool', name: 'Bash' }] }))
+  assert.ok(!isRelayDone(null))
 })
 

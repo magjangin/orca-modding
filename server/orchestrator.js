@@ -246,7 +246,9 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
       broadcast({ type: 'conv-list', conversations: store.list() })
 
       const other = OTHER[agent]
-      if (asst.status === 'done' && ctx.relayRounds > 0 && store.get(conv.id)) {
+      const isDone = isRelayDone(asst)
+      if (isDone) asst.meta.doneTrigger = true
+      if (asst.status === 'done' && ctx.relayRounds > 0 && !isDone && store.get(conv.id)) {
         scheduleFollowUp(conv.id, {
           delayMs: 400,
           body: { agent: other, text: getSettings().relayPrompt, prefs: ctx.prefs, relayRounds: ctx.relayRounds - 1 },
@@ -298,9 +300,20 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
   return { send, stop, stopAll, isRunning, runningAgent }
 }
 
+const DONE_TRIGGER_RE = /(?:^|\s)\[DONE\](?:\s|$)/i
+
+function isRelayDone(asst) {
+  if (!asst || !Array.isArray(asst.parts)) return false
+  const text = asst.parts
+    .filter((p) => p.kind === 'text')
+    .map((p) => p.text)
+    .join('')
+  return DONE_TRIGGER_RE.test(text)
+}
+
 function clipOutput(value) {
   const s = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
   return s.length > 20000 ? s.slice(0, 20000) + `\n…(${s.length - 20000}자 생략)` : s
 }
 
-module.exports = { createOrchestrator, normalizePrefs, QUOTA_ERROR_RE }
+module.exports = { createOrchestrator, normalizePrefs, QUOTA_ERROR_RE, isRelayDone, DONE_TRIGGER_RE }

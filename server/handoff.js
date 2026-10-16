@@ -76,7 +76,8 @@ function buildPrompt(conv, agent, userIndex) {
     `<shared-context>\n` +
     `이 대화는 사용자가 Claude와 Antigravity에게 번갈아 요청하는 공동 작업 스레드입니다. ` +
     `당신(${LABEL[agent]})이 마지막으로 응답한 뒤 사용자와 ${other} 사이에 오간 내용입니다. ` +
-    `같은 작업 폴더를 쓰므로 ${other}가 바꾼 파일이 있을 수 있습니다.\n\n` +
+    `같은 작업 폴더를 쓰므로 ${other}가 바꾼 파일이 있을 수 있습니다.\n` +
+    `[지침] 코드, 파일 경로, 터미널 출력 등 기술 고유 명칭을 제외한 모든 설명·분석·답변은 반드시 한국어로 작성하세요.\n\n` +
     `${body}\n` +
     `</shared-context>\n\n` +
     `[사용자 → ${LABEL[agent]}]\n${userText}`
