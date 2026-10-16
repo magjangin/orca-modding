@@ -144,6 +144,9 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
       touch(asst.parts.length - 1)
     }
 
+    // Why: Claude CLI는 백그라운드 작업이 끝나 다시 깨어나면 `result`를 한 번 더 내보낸다. 턴 종료(핑퐁 예약 포함)가
+    // 두 번 처리되면 같은 대화에서 두 턴이 겹쳐 돌므로, 첫 종료 이후의 이벤트는 버린다.
+    let ended = false
     const turn = runTurn({
       adapter: info.adapter,
       binary: info.binary,
@@ -154,6 +157,7 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
       effort: launch.effort,
       permission: pref.permission,
       onEvent(ev) {
+        if (ended) return
         switch (ev.type) {
           case 'session':
             delivered = true
@@ -191,6 +195,7 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
             return
           }
           case 'done':
+            ended = true
             flush()
             finish(ev)
             return
@@ -204,7 +209,7 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
     function finish(ev) {
       const r = running.get(conv.id)
       const stopRequested = Boolean(r && r.stopRequested)
-      running.delete(conv.id)
+      if (r && r.msgId === asst.id) running.delete(conv.id)
 
       if (ev.isError && !ctx.retried && sessionId && !produced && MISSING_SESSION_RE.test(ev.error || '')) {
         // Why: CLI 쪽 세션 기록이 지워졌으면 새 세션으로 다시 시작하고, 대화 전체를 컨텍스트로 다시 넘긴다.
