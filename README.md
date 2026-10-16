@@ -84,7 +84,19 @@ orca-modding/
 │   ├── runner.js      # CLI 프로세스 스폰, 스트림 파싱 및 taskkill 종료
 │   ├── store.js       # 대화 내역 영구 저장 (%USERPROFILE%\.orca-duo\)
 │   └── agents/        # Claude Code 및 Antigravity CLI 어댑터
-├── public/            # 바닐라 JS 반응형 UI, 커스텀 마크다운 렌더러 & 스타일
+├── public/            # 빌드 도구 없는 바닐라 UI (index.html + ES 모듈)
+│   ├── js/
+│   │   ├── main.js    # 진입점: 부팅, 전역 단축키, 화면 전체 다시 그리기
+│   │   ├── core.js    # 상수·상태·localStorage·API·공통 도우미
+│   │   ├── events.js  # SSE 이벤트 스트림 → 화면 반영
+│   │   ├── sidebar.js # 대화 목록, 에이전트 설치 상태
+│   │   ├── header.js  # 제목(이름 바꾸기), 세션 배지, 작업 폴더 칩
+│   │   ├── messages.js# 메시지·도구 블록 렌더링, 스트리밍 갱신
+│   │   ├── composer.js# 입력창, 보낼 대상, 보내기/멈추기
+│   │   ├── dropdown.js# 모델·권한·핑퐁 펼침 메뉴
+│   │   ├── dialogs.js # 작업 폴더·설정 대화상자
+│   │   └── markdown.js# 의존성 없는 마크다운 렌더러
+│   └── css/           # base(토큰·공통) / layout / messages / markdown / composer / dialogs
 └── test/              # 녹화된 스트림 기반 파서 및 컨텍스트 전달 단위 테스트
 ```
 

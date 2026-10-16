@@ -6,7 +6,12 @@
     <meta name="duo-token" content="%%DUO_TOKEN%%" />
     <title>Orca Duo</title>
     <link rel="icon" href="/icon.svg" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/messages.css" />
+    <link rel="stylesheet" href="/css/markdown.css" />
+    <link rel="stylesheet" href="/css/composer.css" />
+    <link rel="stylesheet" href="/css/dialogs.css" />
   </head>
   <body>
     <aside id="sidebar">
@@ -70,32 +75,32 @@
           <textarea id="input" rows="1" placeholder="메시지 보내기…" spellcheck="false"></textarea>
           <div class="composer-bar">
             <div class="custom-dropdown-wrap" id="model-dropdown-wrap">
-              <button type="button" class="custom-select-btn" id="model-dropdown-btn" title="모델">
-                <svg viewBox="0 0 24 24" style="width:15px; height:15px;" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                <span id="model-label">기본값</span>
-                <span class="caret"><svg viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <button type="button" class="custom-select-btn" aria-haspopup="true" aria-expanded="false" title="모델">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                <span class="dropdown-label">기본값</span>
+                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
               </button>
-              <div class="custom-dropdown-menu" id="model-dropdown-menu"></div>
+              <div class="custom-dropdown-menu"></div>
             </div>
             <div class="custom-dropdown-wrap" id="perm-dropdown-wrap">
-              <button type="button" class="custom-select-btn" id="perm-dropdown-btn" title="권한">
-                <svg viewBox="0 0 24 24" style="width:15px; height:15px;" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                <span id="perm-label">편집 허용</span>
-                <span class="caret"><svg viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <button type="button" class="custom-select-btn" aria-haspopup="true" aria-expanded="false" title="권한">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                <span class="dropdown-label">편집 허용</span>
+                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
               </button>
-              <div class="custom-dropdown-menu" id="perm-dropdown-menu"></div>
+              <div class="custom-dropdown-menu"></div>
             </div>
             <button id="alt-toggle" type="button" class="chip" aria-pressed="true" title="보낼 때마다 대상을 자동으로 바꿉니다">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               자동 번갈기
             </button>
             <div class="custom-dropdown-wrap" id="relay-dropdown-wrap">
-              <button type="button" class="custom-select-btn" id="relay-dropdown-btn" title="답변이 끝나면 상대 에이전트에게 자동으로 넘겨 검토시킵니다">
-                <svg viewBox="0 0 24 24" style="width:15px; height:15px;" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <span id="relay-label">핑퐁 끔</span>
-                <span class="caret"><svg viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <button type="button" class="custom-select-btn" aria-haspopup="true" aria-expanded="false" title="답변이 끝나면 상대 에이전트에게 자동으로 넘겨 검토시킵니다">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="dropdown-label">핑퐁 끔</span>
+                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
               </button>
-              <div class="custom-dropdown-menu" id="relay-dropdown-menu"></div>
+              <div class="custom-dropdown-menu"></div>
             </div>
             <span class="spacer"></span>
             <button id="send" class="send" type="button" aria-label="보내기"></button>
@@ -113,12 +118,12 @@
           <input id="folder-input" type="text" spellcheck="false" placeholder="H:\source\repos\my-mod" />
           <button type="button" id="folder-browse" class="ghost-btn">찾아보기…</button>
         </div>
-        <div id="folder-repos-section" style="margin-top:12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="recent-label" id="folder-repos-label" style="margin:0;">H:\source\repos 프로젝트</span>
-            <input id="folder-repos-filter" type="text" placeholder="프로젝트 검색…" style="font-size:12px; padding:3px 8px; width:140px; border-radius:6px;" />
+        <div id="folder-repos-section" class="repos-section">
+          <div class="repos-head">
+            <span class="recent-label" id="folder-repos-label">H:\source\repos 프로젝트</span>
+            <input id="folder-repos-filter" type="text" spellcheck="false" placeholder="프로젝트 검색…" />
           </div>
-          <div id="folder-repos-list" class="repos-list" style="max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; border:1px solid var(--border); border-radius:8px; padding:4px;"></div>
+          <div id="folder-repos-list" class="repos-list"></div>
         </div>
         <div id="folder-recent"></div>
         <p id="folder-warn" class="warn" hidden>대화 중에 폴더를 바꾸면 두 에이전트 모두 새 세션으로 시작하고, 지금까지의 대화는 컨텍스트로 넘겨줍니다.</p>
@@ -145,8 +150,8 @@
           <span>Antigravity CLI(agy) 경로</span>
           <input id="set-agy" type="text" spellcheck="false" />
         </label>
-        <label class="field checkbox-field" style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:8px;">
-          <input id="set-failover" type="checkbox" style="width:auto; cursor:pointer;" />
+        <label class="field checkbox-field">
+          <input id="set-failover" type="checkbox" />
           <span><b>쿼터/사용량 소진 시 자동 바톤터치</b> (상대 에이전트가 이어서 진행)</span>
         </label>
         <p class="note">대화 저장 위치: <code id="set-datadir"></code></p>
@@ -158,7 +163,6 @@
     </dialog>
 
     <div id="toasts" aria-live="polite"></div>
-    <script src="/markdown.js"></script>
-    <script src="/app.js"></script>
+    <script type="module" src="/js/main.js"></script>
   </body>
 </html>

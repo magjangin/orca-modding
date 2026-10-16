@@ -1,0 +1,170 @@
+/* 대화상자: 작업 폴더, 설정 */
+
+/* ── 대화상자 ── */
+dialog {
+  width: min(560px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px 16px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+dialog::backdrop {
+  background: rgba(20, 20, 18, 0.4);
+}
+dialog h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+dialog .note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+dialog .note code {
+  font: 12px var(--mono);
+  word-break: break-all;
+}
+dialog .row {
+  display: flex;
+  gap: 8px;
+}
+dialog input[type='text'],
+dialog textarea {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--bg);
+  outline: none;
+  font-size: 14px;
+}
+dialog input[type='text'] {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+dialog input:focus,
+dialog textarea:focus {
+  border-color: var(--agy);
+}
+dialog .ghost-btn {
+  border-color: var(--border-strong);
+  white-space: nowrap;
+}
+dialog menu {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+.warn {
+  margin: 12px 0 0;
+  padding: 8px 11px;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+}
+#folder-recent {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.recent-label {
+  font-size: 12px;
+  color: var(--faint);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.recent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  min-width: 0;
+}
+.recent:hover {
+  background: var(--hover);
+}
+.recent b {
+  font-size: 13.5px;
+}
+.recent span {
+  font: 11.5px var(--mono);
+  color: var(--faint);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 12px 0;
+}
+.field > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.field small {
+  color: var(--faint);
+  font-size: 12px;
+}
+.repo-item {
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.repos-section {
+  margin-top: 12px;
+}
+.repos-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.repos-head .recent-label {
+  margin: 0;
+}
+#folder-repos-filter {
+  width: 140px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.repos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.repos-empty {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.checkbox-field input {
+  width: auto;
+  cursor: pointer;
+}
