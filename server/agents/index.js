@@ -129,6 +129,19 @@ function createAgentRegistry({ getSettings, onChange }) {
     })
   }
 
+  /** 설치된 플러그인·스킬. → { plugins } 또는 { error } */
+  function fetchPlugins(id, { force = false } = {}) {
+    const info = agents[id]
+    return cached(`plugins:${id}`, force, async () => {
+      if (!info.binary) return { error: 'CLI를 찾을 수 없습니다' }
+      const probe = info.adapter.pluginProbe
+      if (!probe) return { plugins: [] }
+      const r = await runOnce(info, probe.args, { timeout: 30000 })
+      const plugins = probe.parse(r.stdout)
+      return r.ok || plugins.length ? { plugins } : { error: r.error || '플러그인 목록을 읽지 못했습니다' }
+    })
+  }
+
   function publicInfo() {
     const out = {}
     for (const [id, info] of Object.entries(agents)) {
@@ -144,7 +157,7 @@ function createAgentRegistry({ getSettings, onChange }) {
     return out
   }
 
-  return { agents, detect, publicInfo, fetchUsage, fetchMcp }
+  return { agents, detect, publicInfo, fetchUsage, fetchMcp, fetchPlugins }
 }
 
 module.exports = { createAgentRegistry, versionAtLeast }

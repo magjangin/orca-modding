@@ -155,6 +155,31 @@ function parseMcpList(stdout) {
   return servers
 }
 
+// ── 플러그인·스킬 ── `claude plugin list`
+const PLUGIN_PROBE = { args: ['plugin', 'list'], parse: parsePluginList }
+
+function parsePluginList(stdout) {
+  const plugins = []
+  let cur = null
+  for (const line of String(stdout).split(/\r?\n/)) {
+    const head = line.match(/^\s*>\s+([^@\s]+)(?:@\S+)?/)
+    if (head) {
+      cur = { name: head[1], status: 'enabled', version: '', detail: '' }
+      plugins.push(cur)
+      continue
+    }
+    const ver = line.match(/^\s*Version:\s*(.+)$/i)
+    if (ver && cur) cur.version = ver[1].trim()
+    const st = line.match(/^\s*Status:\s*.*?(\w+)\s*$/i)
+    if (st && cur) cur.status = st[1].toLowerCase()
+    const sc = line.match(/^\s*Scope:\s*(.+)$/i)
+    if (sc && cur && !cur.detail) cur.detail = sc[1].trim()
+    const pt = line.match(/^\s*Path:\s*(.+)$/i)
+    if (pt && cur && !cur.detail) cur.detail = pt[1].trim()
+  }
+  return plugins
+}
+
 function buildArgs({ sessionId, model, effort, permission }) {
   return [
     '-p',
@@ -283,6 +308,7 @@ module.exports = {
   modelProbe: MODEL_PROBE,
   usageProbe: USAGE_PROBE,
   mcpProbe: MCP_PROBE,
+  pluginProbe: PLUGIN_PROBE,
   buildArgs,
   stdinPayload,
   buildEnv,

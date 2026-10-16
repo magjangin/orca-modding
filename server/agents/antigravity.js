@@ -138,6 +138,27 @@ function parseMcpList(stdout) {
   return servers
 }
 
+// ── 플러그인·스킬 ── `agy plugin list`
+const PLUGIN_PROBE = { args: ['plugin', 'list'], parse: parsePluginList }
+
+function parsePluginList(stdout) {
+  const plugins = []
+  let cur = null
+  for (const line of String(stdout).split(/\r?\n/)) {
+    const head = line.match(/^-\s+([\w.-]+)\s+\(([^,]+),\s*([^)]+)\)/)
+    if (head) {
+      cur = { name: head[1], status: head[2].trim(), version: head[3].trim(), detail: '' }
+      plugins.push(cur)
+      continue
+    }
+    const comp = line.match(/^\s+Components:\s*(.+)$/i)
+    if (comp && cur) cur.detail = comp[1].trim()
+    const src = line.match(/^\s+Source:\s*(.+)$/i)
+    if (src && cur && !cur.detail) cur.detail = src[1].trim()
+  }
+  return plugins
+}
+
 function toolStatus(state) {
   if (state === 'DONE') return 'done'
   if (state === 'ACTIVE' || state === 'PENDING' || state === 'RUNNING') return 'running'
@@ -209,6 +230,7 @@ module.exports = {
   modelProbe: MODEL_PROBE,
   usageProbe: USAGE_PROBE,
   mcpProbe: MCP_PROBE,
+  pluginProbe: PLUGIN_PROBE,
   buildArgs,
   stdinPayload,
   buildEnv,

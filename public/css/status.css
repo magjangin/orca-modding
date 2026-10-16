@@ -185,3 +185,43 @@
   white-space: normal;
   word-break: break-word;
 }
+
+/* 플러그인 · 스킬 목록 */
+.plugin-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.plugin-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 7px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.plugin-list li:hover {
+  background: var(--hover);
+}
+.plugin-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plugin-ver {
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+.plugin-detail {
+  grid-column: 2 / -1;
+  font: 11.5px/1.45 var(--font);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

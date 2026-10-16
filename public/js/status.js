@@ -58,6 +58,31 @@ function mcpHtml(agent, m) {
   return `<ul class="mcp-list">${rows}</ul>${MCP_NOTE[agent] ? `<p class="status-note">${MCP_NOTE[agent]}</p>` : ''}`
 }
 
+const PLUGIN_STATUS = {
+  enabled: ['켜짐', 'good'],
+  loaded: ['로드됨', 'good'],
+  active: ['활성', 'good'],
+  disabled: ['꺼짐', 'muted']
+}
+
+function pluginsHtml(p) {
+  if (p.error) return errorHtml(p.error)
+  if (!p.plugins || !p.plugins.length) return emptyHtml('설치된 플러그인이 없습니다')
+  const rows = p.plugins
+    .map((item) => {
+      const [label, t] = PLUGIN_STATUS[item.status] || [item.status, 'good']
+      return `<li>
+        <span class="mcp-dot tone-${t}"></span>
+        <span class="plugin-name">${esc(item.name)}</span>
+        ${item.version ? `<span class="plugin-ver">${esc(item.version)}</span>` : ''}
+        <span class="mcp-state tone-${t}">${label}</span>
+        ${item.detail ? `<small class="plugin-detail">${esc(item.detail)}</small>` : ''}
+      </li>`
+    })
+    .join('')
+  return `<ul class="plugin-list">${rows}</ul>`
+}
+
 function columnHtml(agent) {
   return `<section class="status-col agent-${agent}" data-agent="${agent}">
     <header class="status-col-head"><span class="avatar sm">${ICON[agent]}</span><b>${LABEL[agent]}</b><span class="status-plan"></span></header>
@@ -65,6 +90,8 @@ function columnHtml(agent) {
     <div class="status-usage"></div>
     <h4>MCP 서버 <span class="status-count"></span></h4>
     <div class="status-mcp"></div>
+    <h4>플러그인 · 스킬 <span class="status-plugin-count"></span></h4>
+    <div class="status-plugins"></div>
   </section>`
 }
 
@@ -76,7 +103,7 @@ async function fetchOr(url) {
   }
 }
 
-/** 두 에이전트의 사용량·MCP를 동시에 불러와, 오는 대로 칸을 채운다. force면 서버 캐시를 건너뛴다. */
+/** 두 에이전트의 사용량·MCP·플러그인을 동시에 불러와, 오는 대로 칸을 채운다. force면 서버 캐시를 건너뛴다. */
 function load(force) {
   const seq = ++loadSeq
   const refresh = force ? 'refresh=1' : ''
@@ -85,12 +112,14 @@ function load(force) {
     const col = $(`#status-grid [data-agent="${agent}"]`)
     const usageBox = col.querySelector('.status-usage')
     const mcpBox = col.querySelector('.status-mcp')
+    const pluginBox = col.querySelector('.status-plugins')
     if (!(state.agents[agent] || {}).available) {
-      usageBox.innerHTML = mcpBox.innerHTML = emptyHtml('CLI를 찾을 수 없습니다')
+      usageBox.innerHTML = mcpBox.innerHTML = pluginBox.innerHTML = emptyHtml('CLI를 찾을 수 없습니다')
       continue
     }
-    usageBox.innerHTML = mcpBox.innerHTML = loadingHtml()
+    usageBox.innerHTML = mcpBox.innerHTML = pluginBox.innerHTML = loadingHtml()
     col.querySelector('.status-count').textContent = ''
+    col.querySelector('.status-plugin-count').textContent = ''
     fetchOr(`/api/agents/${agent}/usage?${refresh}`).then((u) => {
       if (seq !== loadSeq) return
       usageBox.innerHTML = usageHtml(u)
@@ -100,6 +129,11 @@ function load(force) {
       if (seq !== loadSeq) return
       mcpBox.innerHTML = mcpHtml(agent, m)
       if (m.servers) col.querySelector('.status-count').textContent = String(m.servers.length)
+    })
+    fetchOr(`/api/agents/${agent}/plugins?${refresh}`).then((p) => {
+      if (seq !== loadSeq) return
+      pluginBox.innerHTML = pluginsHtml(p)
+      if (p.plugins) col.querySelector('.status-plugin-count').textContent = String(p.plugins.length)
     })
   }
 }

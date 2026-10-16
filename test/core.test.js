@@ -335,6 +335,23 @@ test('antigravity: /usage 남은 비율을 사용률로, mcp list 표를 읽는�
   assert.ok(!versionAtLeast(null, '1.1.11'))
 })
 
+test('claude & antigravity: plugin list 파싱 (universal-modder 및 스킬)', () => {
+  const agyPlugins = antigravity.pluginProbe.parse(
+    'Installed plugins:\n- google-antigravity-sdk (enabled, 0.0.9)\n    Source:     antigravity-plugins-official\n    Components: 1 skill\n- universal-modder (enabled, 0.2.0)\n    Source:     antigravity\n    Components: 12 skills\n'
+  )
+  assert.deepEqual(agyPlugins, [
+    { name: 'google-antigravity-sdk', status: 'enabled', version: '0.0.9', detail: '1 skill' },
+    { name: 'universal-modder', status: 'enabled', version: '0.2.0', detail: '12 skills' }
+  ])
+
+  const clPlugins = claude.pluginProbe.parse(
+    'Installed plugins:\n\n  > universal-modder@universal-modder\n    Version: 8370faa8e114\n    Scope: user\n    Status: √ enabled\n'
+  )
+  assert.deepEqual(clPlugins, [
+    { name: 'universal-modder', status: 'enabled', version: '8370faa8e114', detail: 'user' }
+  ])
+})
+
 function conv(messages, seen, sessions) {
   return { messages, seen, sessions }
 }

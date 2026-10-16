@@ -168,6 +168,7 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
       const force = url.searchParams.get('refresh') === '1'
       if (action === 'usage') return json(res, 200, await registry.fetchUsage(id, { force }))
       if (action === 'mcp') return json(res, 200, await registry.fetchMcp(id, { cwd: url.searchParams.get('cwd'), force }))
+      if (action === 'plugins') return json(res, 200, await registry.fetchPlugins(id, { force }))
     }
 
     if (route === 'pick-folder' && method === 'POST') {
