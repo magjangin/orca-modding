@@ -4,18 +4,26 @@ const fs = require('node:fs')
 const store = require('./store')
 const { runTurn } = require('./runner')
 const { buildPrompt } = require('./handoff')
+const { HttpError } = require('./http')
+const { AGENT_IDS, LABEL, OTHER, PERMISSIONS, EFFORT_LEVELS, resolveLaunch } = require('./agents/shared')
 
-const OTHER = { claude: 'antigravity', antigravity: 'claude' }
 const MISSING_SESSION_RE = /no conversation found|conversation .*not found|session .*not found|could not find|does not exist/i
 // 쿼터/사용량 초과/Rate limit/잔액 부족 감지 패턴
 const QUOTA_ERROR_RE = /quota|rate.?limit|exceeded|insufficient_quota|credit.?balance|too low|resource.?exhausted|overloaded|usage limit|hit your limit/i
 const FLUSH_MS = 50
 
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message)
-    this.status = status
+/** 화면이 보낸 에이전트별 설정을 검증한다 (모르는 값은 기본값으로). */
+function normalizePrefs(p) {
+  const out = {}
+  for (const a of AGENT_IDS) {
+    const src = (p && p[a]) || {}
+    out[a] = {
+      model: typeof src.model === 'string' && src.model ? src.model : 'default',
+      effort: EFFORT_LEVELS.includes(src.effort) ? src.effort : 'default',
+      permission: PERMISSIONS.includes(src.permission) ? src.permission : 'edit'
+    }
   }
+  return out
 }
 
 function createOrchestrator({ agents, broadcast, getSettings }) {
@@ -79,22 +87,28 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
     return { userId: userMsg.id, assistantId: asst.id }
   }
 
-  function normalizePrefs(p) {
-    const out = {}
-    for (const a of ['claude', 'antigravity']) {
-      const src = (p && p[a]) || {}
-      out[a] = {
-        model: typeof src.model === 'string' && src.model ? src.model : 'default',
-        permission: ['plan', 'edit', 'full'].includes(src.permission) ? src.permission : 'edit'
+  /** 턴이 끝난 뒤 잠깐 기다렸다가 자동으로 다음 메시지를 보낸다 (핑퐁·바톤터치). Esc로 취소할 수 있다. */
+  function scheduleFollowUp(convId, { delayMs, body, failPrefix, notice }) {
+    const timer = setTimeout(() => {
+      relayTimers.delete(convId)
+      try {
+        if (notice) broadcast({ type: 'toast', convId, level: 'warn', message: notice })
+        send(convId, { ...body, auto: true })
+      } catch (err) {
+        broadcast({ type: 'toast', convId, level: 'error', message: `${failPrefix}: ${err.message}` })
+        publishRunning(convId)
       }
-    }
-    return out
+    }, delayMs)
+    relayTimers.set(convId, timer)
   }
 
   function startTurn(conv, asst, userIndex, prompt, ctx) {
     const agent = asst.agent
     const info = agents[agent]
     const sessionId = conv.sessions[agent]
+    const pref = ctx.prefs[agent]
+    const launch = resolveLaunch(info.models, pref.model, pref.effort)
+    asst.meta.effort = launch.level || undefined
     const startedAt = Date.now()
     let delivered = false
     let produced = false
@@ -134,8 +148,9 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
       cwd: conv.cwd,
       prompt,
       sessionId,
-      model: ctx.prefs[agent].model,
-      permission: ctx.prefs[agent].permission,
+      model: launch.model,
+      effort: launch.effort,
+      permission: pref.permission,
       onEvent(ev) {
         switch (ev.type) {
           case 'session':
@@ -228,53 +243,33 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
       broadcast({ type: 'message', convId: conv.id, message: asst })
       broadcast({ type: 'conv-list', conversations: store.list() })
 
+      const other = OTHER[agent]
       if (asst.status === 'done' && ctx.relayRounds > 0 && store.get(conv.id)) {
-        const timer = setTimeout(() => {
-          relayTimers.delete(conv.id)
-          try {
-            send(conv.id, {
-              agent: OTHER[agent],
-              text: getSettings().relayPrompt,
-              prefs: ctx.prefs,
-              relayRounds: ctx.relayRounds - 1,
-              auto: true
-            })
-          } catch (err) {
-            broadcast({ type: 'toast', convId: conv.id, level: 'error', message: `자동 핑퐁 중단: ${err.message}` })
-            publishRunning(conv.id)
-          }
-        }, 400)
-        relayTimers.set(conv.id, timer)
-      } else if (asst.status === 'error' && !ctx.failedOver && store.get(conv.id)) {
-        const settings = getSettings()
-        const isQuota = QUOTA_ERROR_RE.test(`${ev.error || ''} ${ev.stderr || ''}`)
-        const otherAgent = OTHER[agent]
-        const otherInfo = agents[otherAgent]
-        if (settings.autoFailover !== false && isQuota && otherInfo && otherInfo.binary) {
-          const timer = setTimeout(() => {
-            relayTimers.delete(conv.id)
-            try {
-              broadcast({
-                type: 'toast',
-                convId: conv.id,
-                level: 'warn',
-                message: `⚠️ ${agent === 'claude' ? 'Claude' : 'Antigravity'} 쿼터/사용량 제한 감지 → ${otherAgent === 'claude' ? 'Claude' : 'Antigravity'}가 이어서 진행합니다.`
-              })
-              send(conv.id, {
-                agent: otherAgent,
-                text: `${agent === 'claude' ? 'Claude' : 'Antigravity'}가 사용량/쿼터 한도에 도달하여 중단되었습니다. 위 대화와 맥락을 이어서 진행해줘.`,
-                prefs: ctx.prefs,
-                relayRounds: ctx.relayRounds,
-                auto: true,
-                failedOver: true
-              })
-            } catch (err) {
-              broadcast({ type: 'toast', convId: conv.id, level: 'error', message: `자동 바톤터치 실패: ${err.message}` })
-              publishRunning(conv.id)
-            }
-          }, 600)
-          relayTimers.set(conv.id, timer)
-        }
+        scheduleFollowUp(conv.id, {
+          delayMs: 400,
+          body: { agent: other, text: getSettings().relayPrompt, prefs: ctx.prefs, relayRounds: ctx.relayRounds - 1 },
+          failPrefix: '자동 핑퐁 중단'
+        })
+      } else if (
+        asst.status === 'error' &&
+        !ctx.failedOver &&
+        store.get(conv.id) &&
+        getSettings().autoFailover !== false &&
+        QUOTA_ERROR_RE.test(`${ev.error || ''} ${ev.stderr || ''}`) &&
+        agents[other].binary
+      ) {
+        scheduleFollowUp(conv.id, {
+          delayMs: 600,
+          body: {
+            agent: other,
+            text: `${LABEL[agent]}가 사용량/쿼터 한도에 도달하여 중단되었습니다. 위 대화와 맥락을 이어서 진행해줘.`,
+            prefs: ctx.prefs,
+            relayRounds: ctx.relayRounds,
+            failedOver: true
+          },
+          failPrefix: '자동 바톤터치 실패',
+          notice: `⚠️ ${LABEL[agent]} 쿼터/사용량 제한 감지 → ${LABEL[other]}가 이어서 진행합니다.`
+        })
       }
       publishRunning(conv.id)
     }
@@ -298,7 +293,7 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
     for (const id of [...running.keys(), ...relayTimers.keys()]) stop(id)
   }
 
-  return { send, stop, stopAll, isRunning, runningAgent, HttpError }
+  return { send, stop, stopAll, isRunning, runningAgent }
 }
 
 function clipOutput(value) {
@@ -306,4 +301,4 @@ function clipOutput(value) {
   return s.length > 20000 ? s.slice(0, 20000) + `\n…(${s.length - 20000}자 생략)` : s
 }
 
-module.exports = { createOrchestrator, HttpError, QUOTA_ERROR_RE }
+module.exports = { createOrchestrator, normalizePrefs, QUOTA_ERROR_RE }

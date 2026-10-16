@@ -2,7 +2,9 @@
 // Claude Code 헤드리스 어댑터.
 // Orca 출처: src/shared/commit-message-agent-specs-primary.ts (`claude -p`는 stdin으로 프롬프트를 받음),
 // src/shared/agent-resume-argv.ts (`--resume <session_id>`),
-// src/main/claude/claude-child-process-environment.ts (자식 세션 스탬프 환경변수 제거).
+// src/main/claude/claude-child-process-environment.ts (자식 세션 스탬프 환경변수 제거),
+// src/shared/claude-model-list-probe.ts (`list_models` 제어 요청으로 모델 목록 받기).
+const { LABEL, EFFORT_LEVELS, sortEfforts } = require('./shared')
 
 const CHILD_SESSION_STAMP_KEYS = [
   'CLAUDE_CODE_CHILD_SESSION',
@@ -19,14 +21,53 @@ const PERMISSION_ARGS = {
   full: ['--dangerously-skip-permissions']
 }
 
+// 목록 확인 전(또는 list_models를 모르는 구버전 CLI)에 쓰는 기본 목록.
 const MODELS = [
-  { id: 'default', label: '기본값' },
-  { id: 'opus', label: 'Opus' },
-  { id: 'sonnet', label: 'Sonnet' },
-  { id: 'haiku', label: 'Haiku' }
+  { id: 'default', label: '기본값', efforts: EFFORT_LEVELS },
+  { id: 'opus', label: 'Opus', efforts: EFFORT_LEVELS },
+  { id: 'sonnet', label: 'Sonnet', efforts: EFFORT_LEVELS },
+  { id: 'haiku', label: 'Haiku', efforts: [] }
 ]
 
-function buildArgs({ sessionId, model, permission }) {
+// Why: claude에는 모델 목록 명령이 없다. --print stream-json에 list_models 제어 요청 한 줄을 보내면
+// API 호출 없이 /model 선택지(표시 이름에 버전 포함, 모델별 노력 단계)를 돌려준다.
+// 사용자 설정을 읽지 않게(--setting-sources project, 빈 데이터 폴더에서 실행) 해서 SessionStart 훅이 돌지 않게 한다.
+const MODEL_PROBE = {
+  args: ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--setting-sources', 'project'],
+  stdin: JSON.stringify({ type: 'control_request', request_id: 'duo-models', request: { subtype: 'list_models' } }) + '\n',
+  parse: parseModels
+}
+
+function parseModels(stdout) {
+  for (const line of String(stdout).split(/\r?\n/)) {
+    if (!line.includes('control_response')) continue
+    let obj
+    try {
+      obj = JSON.parse(line)
+    } catch {
+      continue
+    }
+    const res = obj.response || {}
+    const raw = res.subtype === 'success' && res.response && res.response.models
+    if (!Array.isArray(raw)) continue
+    const seen = new Set()
+    const models = []
+    for (const m of raw) {
+      const id = m && typeof m.value === 'string' ? m.value.trim() : ''
+      // Why: 아직 못 쓰는 모델은 disabled 자리표시 줄로 오고, 그 value를 --model에 넘기면 실패한다.
+      if (!id || m.disabled === true || seen.has(id)) continue
+      seen.add(id)
+      const efforts = m.supportsEffort === true && Array.isArray(m.supportedEffortLevels) ? sortEfforts(m.supportedEffortLevels) : []
+      // Why: default 줄의 설명은 사용자 설정을 빼고 확인한 값이라 실제 기본 모델과 다를 수 있어 붙이지 않는다.
+      if (id === 'default') models.push({ id, label: '기본값', efforts })
+      else models.push({ id, label: m.displayName || id, hint: m.description || undefined, resolved: m.resolvedModel || undefined, efforts })
+    }
+    if (models.length) return models
+  }
+  return []
+}
+
+function buildArgs({ sessionId, model, effort, permission }) {
   return [
     '-p',
     '--output-format',
@@ -35,6 +76,7 @@ function buildArgs({ sessionId, model, permission }) {
     '--include-partial-messages',
     ...(sessionId ? ['--resume', sessionId] : []),
     ...(model && model !== 'default' ? ['--model', model] : []),
+    ...(effort ? ['--effort', effort] : []),
     ...(PERMISSION_ARGS[permission] || PERMISSION_ARGS.edit)
   ]
 }
@@ -147,9 +189,10 @@ function createParser(emit) {
 
 module.exports = {
   id: 'claude',
-  label: 'Claude',
+  label: LABEL.claude,
   binaryName: 'claude',
   models: MODELS,
+  modelProbe: MODEL_PROBE,
   buildArgs,
   stdinPayload,
   buildEnv,

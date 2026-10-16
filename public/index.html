@@ -74,34 +74,15 @@
           </div>
           <textarea id="input" rows="1" placeholder="메시지 보내기…" spellcheck="false"></textarea>
           <div class="composer-bar">
-            <div class="custom-dropdown-wrap" id="model-dropdown-wrap">
-              <button type="button" class="custom-select-btn" aria-haspopup="true" aria-expanded="false" title="모델">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                <span class="dropdown-label">기본값</span>
-                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </button>
-              <div class="custom-dropdown-menu"></div>
-            </div>
-            <div class="custom-dropdown-wrap" id="perm-dropdown-wrap">
-              <button type="button" class="custom-select-btn" aria-haspopup="true" aria-expanded="false" title="권한">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                <span class="dropdown-label">편집 허용</span>
-                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </button>
-              <div class="custom-dropdown-menu"></div>
-            </div>
+            <!-- 펼침 메뉴는 js/dropdown.js가 채운다 -->
+            <div class="custom-dropdown-wrap" id="model-dropdown-wrap"></div>
+            <div class="custom-dropdown-wrap" id="effort-dropdown-wrap"></div>
+            <div class="custom-dropdown-wrap" id="perm-dropdown-wrap"></div>
             <button id="alt-toggle" type="button" class="chip" aria-pressed="true" title="보낼 때마다 대상을 자동으로 바꿉니다">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               자동 번갈기
             </button>
-            <div class="custom-dropdown-wrap" id="relay-dropdown-wrap">
-              <button type="button" class="custom-select-btn" aria-haspopup="true" aria-expanded="false" title="답변이 끝나면 상대 에이전트에게 자동으로 넘겨 검토시킵니다">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <span class="dropdown-label">핑퐁 끔</span>
-                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </button>
-              <div class="custom-dropdown-menu"></div>
-            </div>
+            <div class="custom-dropdown-wrap" id="relay-dropdown-wrap"></div>
             <span class="spacer"></span>
             <button id="send" class="send" type="button" aria-label="보내기"></button>
           </div>

@@ -2,10 +2,19 @@
 // 실제 CLI 출력(2026-10 기준 claude 2.1.293, agy 1.3.5)을 녹화한 줄로 파서와 컨텍스트 전달을 검증한다.
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+
+// Why: orchestrator가 store를 불러오면 데이터 폴더를 만들고 읽는다. 실제 ~/.orca-duo를 건드리지 않게 임시 폴더로 돌린다.
+process.env.ORCA_DUO_DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'orca-duo-test-'))
+
 const claude = require('../server/agents/claude')
 const antigravity = require('../server/agents/antigravity')
+const { resolveLaunch } = require('../server/agents/shared')
 const { buildPrompt } = require('../server/handoff')
-const { QUOTA_ERROR_RE } = require('../server/orchestrator')
+const { QUOTA_ERROR_RE, normalizePrefs, createOrchestrator } = require('../server/orchestrator')
+const store = require('../server/store')
 
 function collect(adapter, lines) {
   const events = []
@@ -91,6 +100,104 @@ test('claude: 인자와 자식 환경변수 정리', () => {
   assert.ok(claude.buildArgs({ sessionId: 's', model: 'opus', permission: 'edit' }).join(' ').includes('--resume s --model opus --permission-mode acceptEdits'))
   const env = claude.buildEnv({ PATH: 'x', CLAUDECODE: '1', claude_code_session_id: 'abc' })
   assert.deepEqual(env, { PATH: 'x' })
+})
+
+test('claude: list_models 응답에서 버전 붙은 이름과 노력 단계를 읽는다', () => {
+  const stdout = [
+    '{"type":"system","subtype":"hook_started"}',
+    JSON.stringify({
+      type: 'control_response',
+      response: {
+        subtype: 'success',
+        response: {
+          models: [
+            { value: 'default', displayName: 'Default (recommended)', supportsEffort: true, supportedEffortLevels: ['high', 'low', 'max'] },
+            { value: 'opus', displayName: 'Opus 5.5', description: 'For complex work', resolvedModel: 'claude-opus-5-5', supportsEffort: true, supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'] },
+            { value: 'claude-haiku-4-5', displayName: 'Haiku 4.5' },
+            { value: 'cc-update-required-1', displayName: 'Fable 9 (disabled)', disabled: true }
+          ]
+        }
+      }
+    })
+  ].join('\n')
+  assert.deepEqual(JSON.parse(JSON.stringify(claude.modelProbe.parse(stdout))), [
+    { id: 'default', label: '기본값', efforts: ['low', 'high', 'max'] },
+    { id: 'opus', label: 'Opus 5.5', hint: 'For complex work', resolved: 'claude-opus-5-5', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
+    { id: 'claude-haiku-4-5', label: 'Haiku 4.5', efforts: [] }
+  ])
+  assert.deepEqual(claude.modelProbe.parse('{"type":"control_response","response":{"subtype":"error"}}'), [])
+  assert.ok(claude.buildArgs({ model: 'opus', effort: 'xhigh', permission: 'edit' }).join(' ').includes('--model opus --effort xhigh'))
+})
+
+test('antigravity: 노력 단계별 모델을 계열 하나로 묶는다', () => {
+  const models = antigravity.modelProbe.parse(
+    'Fetching available models...\ngemini-x-medium\tGemini X (Medium)\ngemini-x-low\tGemini X (Low)\ngemini-x-high\tGemini X (High)\nsolo\tSolo\n'
+  )
+  assert.equal(models[0].id, 'default')
+  assert.deepEqual(models[1], {
+    id: 'gemini-x',
+    label: 'Gemini X',
+    efforts: ['low', 'medium', 'high'],
+    variants: { medium: 'gemini-x-medium', low: 'gemini-x-low', high: 'gemini-x-high' },
+    defaultEffort: 'high'
+  })
+  assert.deepEqual(models[2], { id: 'solo', label: 'Solo', efforts: [] })
+  assert.deepEqual(antigravity.modelProbe.parse('Fetching available models...\n'), [])
+})
+
+test('resolveLaunch: 노력은 모델이 지원할 때만, agy 계열은 변형 ID로', () => {
+  const agy = antigravity.groupModels([
+    { id: 'g-low', label: 'G (Low)' },
+    { id: 'g-high', label: 'G (High)' }
+  ])
+  assert.deepEqual(resolveLaunch(agy, 'g', 'low'), { model: 'g-low', effort: null, level: 'low' })
+  assert.deepEqual(resolveLaunch(agy, 'g', 'max'), { model: 'g-high', effort: null, level: 'high' })
+  const cl = [
+    { id: 'opus', label: 'Opus 5.5', efforts: ['low', 'high'] },
+    { id: 'haiku', label: 'Haiku 4.5', efforts: [] }
+  ]
+  assert.deepEqual(resolveLaunch(cl, 'opus', 'high'), { model: 'opus', effort: 'high', level: 'high' })
+  assert.deepEqual(resolveLaunch(cl, 'haiku', 'high'), { model: 'haiku', effort: null, level: null })
+  assert.deepEqual(resolveLaunch(cl, 'unknown-model', 'high'), { model: 'unknown-model', effort: null, level: null })
+})
+
+test('normalizePrefs: 모르는 노력·권한 값은 기본값으로', () => {
+  const p = normalizePrefs({ claude: { model: 'opus', effort: 'xhigh', permission: 'full' }, antigravity: { effort: 'turbo', permission: 'root' } })
+  assert.deepEqual(p.claude, { model: 'opus', effort: 'xhigh', permission: 'full' })
+  assert.deepEqual(p.antigravity, { model: 'default', effort: 'default', permission: 'edit' })
+})
+
+test('orchestrator: 고른 모델·노력이 CLI 인자까지 가고, 답변 meta에 남는다', async () => {
+  const calls = []
+  // 진짜 CLI 대신 node로 claude 형식의 result 한 줄만 찍는 가짜 어댑터.
+  const fake = {
+    ...claude,
+    buildArgs(o) {
+      calls.push(o)
+      return ['-e', `process.stdout.write(${JSON.stringify(JSON.stringify({ type: 'result', is_error: false, result: 'ok', session_id: 's-1' }))} + '\\n')`]
+    }
+  }
+  const binary = { path: process.execPath, shell: false }
+  const agents = {
+    claude: { adapter: fake, binary, models: [{ id: 'opus', label: 'Opus 5.5', efforts: ['low', 'high'] }] },
+    antigravity: { adapter: fake, binary, models: [] }
+  }
+  let resolveDone
+  const done = new Promise((r) => (resolveDone = r))
+  const orch = createOrchestrator({
+    agents,
+    broadcast: (e) => e.type === 'message' && e.message.role === 'assistant' && e.message.status !== 'streaming' && resolveDone(e.message),
+    getSettings: () => ({ relayPrompt: '', autoFailover: false })
+  })
+  const c = store.create(os.tmpdir())
+  orch.send(c.id, { agent: 'claude', text: 'hi', prefs: { claude: { model: 'opus', effort: 'high', permission: 'plan' } } })
+  const reply = await done
+  assert.equal(calls[0].model, 'opus')
+  assert.equal(calls[0].effort, 'high')
+  assert.equal(calls[0].permission, 'plan')
+  assert.equal(reply.status, 'done')
+  assert.equal(reply.meta.effort, 'high')
+  assert.equal(c.sessions.claude, 's-1')
 })
 
 function conv(messages, seen, sessions) {

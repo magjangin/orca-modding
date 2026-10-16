@@ -59,6 +59,9 @@
 * {
   box-sizing: border-box;
 }
+[hidden] {
+  display: none !important;
+}
 html,
 body {
   height: 100%;
@@ -73,7 +76,6 @@ body {
   overflow: hidden;
 }
 button,
-select,
 input,
 textarea {
   font: inherit;

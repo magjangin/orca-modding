@@ -5,14 +5,17 @@
 // src/shared/agent-session-option-catalog-antigravity.ts (`--model`, `--effort`).
 // Orca는 `--print=<프롬프트>`로 argv에 싣지만, Windows 명령줄 32K 제한 때문에 여기서는
 // agy 1.3의 `--input-format stream-json`(stdin NDJSON `{"event":"user",...}`)을 쓴다.
+const { LABEL, EFFORT_LEVELS, sortEfforts } = require('./shared')
 
 const PERMISSION_ARGS = {
   plan: ['--mode', 'plan'],
   edit: ['--mode', 'accept-edits'],
   full: ['--dangerously-skip-permissions']
 }
+const DEFAULT_MODEL = { id: 'default', label: '기본값', efforts: EFFORT_LEVELS }
+const VARIANT_RE = new RegExp(`^(.+)-(${EFFORT_LEVELS.join('|')})$`)
 
-function buildArgs({ sessionId, model, permission }) {
+function buildArgs({ sessionId, model, effort, permission }) {
   return [
     '--input-format',
     'stream-json',
@@ -20,6 +23,7 @@ function buildArgs({ sessionId, model, permission }) {
     'stream-json',
     ...(sessionId ? ['--conversation', sessionId] : []),
     ...(model && model !== 'default' ? ['--model', model] : []),
+    ...(effort ? ['--effort', effort] : []),
     ...(PERMISSION_ARGS[permission] || PERMISSION_ARGS.edit)
   ]
 }
@@ -43,6 +47,39 @@ function parseModels(stdout) {
     models.push({ id: id.trim(), label: (label || id).trim() })
   }
   return models
+}
+
+/**
+ * agy 모델 ID는 노력 단계가 끝에 붙은 변형(`gemini-4-argon-low`·`-medium`·`-high`)이라,
+ * 모델 칸에는 계열 하나만 보이고 노력 칸에서 변형을 고르게 묶는다.
+ */
+function groupModels(list) {
+  const families = new Map()
+  for (const { id, label } of list) {
+    const m = id.match(VARIANT_RE)
+    const familyId = m ? m[1] : id
+    let family = families.get(familyId)
+    if (!family) {
+      family = { id: familyId, label: label.replace(/\s*\([^)]*\)\s*$/, '') || familyId, efforts: [], variants: m ? {} : undefined }
+      families.set(familyId, family)
+    }
+    if (m && family.variants) family.variants[m[2]] = id
+  }
+  return [...families.values()].map((f) => {
+    if (!f.variants) return { id: f.id, label: f.label, efforts: [] }
+    const efforts = sortEfforts(Object.keys(f.variants))
+    const defaultEffort = ['high', 'medium'].find((l) => f.variants[l]) || efforts[0]
+    return { ...f, efforts, defaultEffort }
+  })
+}
+
+const MODEL_PROBE = {
+  args: ['models'],
+  stdin: null,
+  parse(stdout) {
+    const models = groupModels(parseModels(stdout))
+    return models.length ? [DEFAULT_MODEL, ...models] : []
+  }
 }
 
 function toolStatus(state) {
@@ -110,12 +147,14 @@ function createParser(emit) {
 
 module.exports = {
   id: 'antigravity',
-  label: 'Antigravity',
+  label: LABEL.antigravity,
   binaryName: 'agy',
-  models: [{ id: 'default', label: '기본값' }],
+  models: [DEFAULT_MODEL],
+  modelProbe: MODEL_PROBE,
   buildArgs,
   stdinPayload,
   buildEnv,
   createParser,
-  parseModels
+  parseModels,
+  groupModels
 }

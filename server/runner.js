@@ -15,8 +15,8 @@ function quoteForShell(arg) {
  * @param {{path:string, shell:boolean}} o.binary
  * @param {(ev:object)=>void} o.onEvent
  */
-function runTurn({ adapter, binary, cwd, prompt, sessionId, model, permission, onEvent }) {
-  const args = adapter.buildArgs({ sessionId, model, permission })
+function runTurn({ adapter, binary, cwd, prompt, sessionId, model, effort, permission, onEvent }) {
+  const args = adapter.buildArgs({ sessionId, model, effort, permission })
   const env = adapter.buildEnv(process.env)
   const child = binary.shell
     ? spawn([quoteForShell(binary.path), ...args.map(quoteForShell)].join(' '), {

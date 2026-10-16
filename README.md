@@ -46,6 +46,10 @@ Antigravity       : (view_file → replace_file_content) 버그를 수정했습�
   - 핑퐁 횟수(1~10회)를 설정하면 에이전트 답변이 끝난 후 상대 에이전트에게 자동으로 대화를 넘겨 교차 검증 및 연속 작업을 수행합니다.
 - **↪ ○○에게 넘기기 (Handoff)**:
   - 답변 카드 하단의 넘기기 버튼을 누르면 상대 에이전트 맞춤형 검토 프롬프트가 입력창에 자동으로 채워집니다.
+- **모델 · 노력(effort) 선택**:
+  - 모델 목록은 각 CLI에서 직접 받아 버전이 붙은 이름으로 보여 줍니다 (`Opus 5.5`, `Sonnet 5.5`, `Gemini 4 Argon` …). 마지막 목록은 `models.json`에 저장해 다음 실행에서 바로 보입니다.
+  - **노력**: 기본값 / 낮음 / 중간 / 높음 / 엑스트라 / 최대 — 고른 모델이 지원하는 단계만 나오고, 지원하지 않는 모델(예: Haiku 4.5)에서는 칸이 숨겨집니다.
+  - Antigravity는 노력 단계가 모델 ID에 들어 있어(`…-low`·`-medium`·`-high`) 모델 칸에서 계열을, 노력 칸에서 단계를 고릅니다.
 - **세분화된 권한 제어**:
   - **읽기 전용 (Plan)**: 파일 수정 없이 계획 및 분석만 수행
   - **편집 허용 (Edit)**: 파일 편집은 자동 승인, 셸/터미널 명령 실행은 제한
@@ -78,12 +82,19 @@ Orca Duo는 각 에이전트가 **"상대방의 대화를 어디까지 보았는
 orca-modding/
 ├── electron/          # Electron 데스크톱 창 & 네이티브 다이얼로그 바인딩
 ├── server/            # 로컬 백엔드 서버 (127.0.0.1 HTTP + SSE)
-│   ├── index.js       # 엔드포인트 라우팅, 토큰 기반 보안 및 호스트 검증
-│   ├── orchestrator.js# 턴 흐름 제어, 세션 관리 및 자동 핑퐁 스케줄러
+│   ├── index.js       # 서버 시작, API 라우팅, 토큰 기반 보안 및 호스트 검증
+│   ├── http.js        # JSON 응답·요청 본문·정적 파일 도우미
+│   ├── desktop.js     # 폴더 선택 창, 탐색기·브라우저로 열기
+│   ├── orchestrator.js# 턴 흐름 제어, 세션 관리, 자동 핑퐁·바톤터치 예약
 │   ├── handoff.js     # <shared-context> 포맷팅 및 컨텍스트 슬라이싱
 │   ├── runner.js      # CLI 프로세스 스폰, 스트림 파싱 및 taskkill 종료
-│   ├── store.js       # 대화 내역 영구 저장 (%USERPROFILE%\.orca-duo\)
-│   └── agents/        # Claude Code 및 Antigravity CLI 어댑터
+│   ├── store.js       # 대화·설정·모델 목록 저장 (%USERPROFILE%\.orca-duo\)
+│   └── agents/
+│       ├── index.js   # 에이전트 목록: CLI 찾기, 버전·모델 목록 확인
+│       ├── shared.js  # 에이전트 이름, 노력 단계, 모델·노력 → CLI 인자 해석
+│       ├── binary.js  # 실행 파일 찾기 (npm .cmd 셈 → 실제 exe)
+│       ├── claude.js  # Claude Code 어댑터 (list_models로 모델 목록)
+│       └── antigravity.js # agy 어댑터 (모델을 노력 단계별 계열로 묶음)
 ├── public/            # 빌드 도구 없는 바닐라 UI (index.html + ES 모듈)
 │   ├── js/
 │   │   ├── main.js    # 진입점: 부팅, 전역 단축키, 화면 전체 다시 그리기

@@ -1,8 +1,8 @@
 'use strict'
 // 번갈아 보내기의 핵심: 각 에이전트는 자기 세션만 기억하므로, 마지막으로 응답한 뒤
 // 상대 에이전트와 오간 대화를 프롬프트 앞에 붙여 넘겨준다.
+const { LABEL, OTHER } = require('./agents/shared')
 
-const LABEL = { claude: 'Claude', antigravity: 'Antigravity' }
 const PER_MESSAGE_LIMIT = 6000
 const TOTAL_LIMIT = 30000
 
@@ -50,7 +50,7 @@ function buildPrompt(conv, agent, userIndex) {
   const unseen = unseenMessages(conv, agent, userIndex)
   if (unseen.length === 0) return { prompt: userText, handoffCount: 0 }
 
-  const other = agent === 'claude' ? 'Antigravity' : 'Claude'
+  const other = LABEL[OTHER[agent]]
   const entries = unseen.map(renderEntry)
   let dropped = 0
   while (entries.length > 1 && entries.join('\n\n').length > TOTAL_LIMIT) {
@@ -69,4 +69,4 @@ function buildPrompt(conv, agent, userIndex) {
   return { prompt, handoffCount: unseen.length }
 }
 
-module.exports = { buildPrompt, assistantText, LABEL }
+module.exports = { buildPrompt }

@@ -14,12 +14,8 @@ export const ICON = {
   antigravity:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5 12 5l7.5 14.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15.2" r="2.1" fill="currentColor"/></svg>'
 }
-export const PERMISSIONS = [
-  { id: 'plan', label: '읽기 전용', hint: '파일을 바꾸지 않고 계획·분석만 합니다', tone: 'ok' },
-  { id: 'edit', label: '편집 허용', hint: '파일 편집은 자동 승인, 명령 실행은 막힙니다' },
-  { id: 'full', label: '전체 자동', hint: '확인 없이 명령까지 실행합니다 (주의)', tone: 'danger' }
-]
-export const RELAY_ROUNDS = [0, 1, 2, 3, 5]
+// 노력(effort) 단계 — 서버 agents/shared.js의 EFFORT_LEVELS와 같은 순서.
+export const EFFORT_LABEL = { low: '낮음', medium: '중간', high: '높음', xhigh: '엑스트라', max: '최대' }
 
 // ── 상태 ──────────────────────────────────────────────
 export const state = {
@@ -32,8 +28,8 @@ export const state = {
   dataDir: '',
   target: 'claude',
   prefs: {
-    claude: { model: 'default', permission: 'edit' },
-    antigravity: { model: 'default', permission: 'edit' }
+    claude: { model: 'default', effort: 'default', permission: 'edit' },
+    antigravity: { model: 'default', effort: 'default', permission: 'edit' }
   },
   autoAlternate: true,
   relayRounds: 0

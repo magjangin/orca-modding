@@ -8,6 +8,7 @@ const crypto = require('node:crypto')
 const DATA_DIR = process.env.ORCA_DUO_DATA || path.join(os.homedir(), '.orca-duo')
 const CONV_DIR = path.join(DATA_DIR, 'conversations')
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json')
+const MODEL_CACHE_FILE = path.join(DATA_DIR, 'models.json')
 
 fs.mkdirSync(CONV_DIR, { recursive: true })
 
@@ -46,6 +47,19 @@ function loadSettings() {
 
 function saveSettings(settings) {
   writeAtomic(SETTINGS_FILE, JSON.stringify(settings, null, 2))
+}
+
+/** 에이전트별 마지막 모델 목록 ({ claude: [...], antigravity: [...] }). */
+function loadModelCache() {
+  try {
+    return JSON.parse(fs.readFileSync(MODEL_CACHE_FILE, 'utf8')) || {}
+  } catch {
+    return {}
+  }
+}
+
+function saveModelCache(cache) {
+  writeAtomic(MODEL_CACHE_FILE, JSON.stringify(cache, null, 2))
 }
 
 function convFile(id) {
@@ -157,8 +171,10 @@ module.exports = {
   saveSoon,
   remove,
   flushAll,
-  summary,
   loadSettings,
   saveSettings,
-  DEFAULT_SETTINGS
+  loadModelCache,
+  saveModelCache,
+  DEFAULT_SETTINGS,
+  DEFAULT_REPOS_ROOT
 }

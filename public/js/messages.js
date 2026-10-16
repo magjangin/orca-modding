@@ -1,14 +1,17 @@
 // 대화 본문: 메시지 그리기, 스트리밍 갱신, 경과 시간, 코드 복사·파일 링크.
-import { $, esc, el, state, AGENTS, LABEL, OTHER, ICON, api, fmtDuration, toast } from './core.js'
+import { $, esc, el, state, AGENTS, LABEL, OTHER, ICON, EFFORT_LABEL, api, fmtDuration, toast } from './core.js'
 import { renderMarkdown } from './markdown.js'
 import { autosize, setTarget } from './composer.js'
 
 // 사용자가 펼친 도구·생각 블록. 스트리밍으로 다시 그려도 펼침을 유지한다.
 const openDetails = new Set()
 
+// CLI가 알려 준 실제 모델 ID(`claude-opus-5-5`, `gemini-4-argon-low`)도 목록의 표시 이름(`Opus 5.5`)으로 바꾼다.
 function modelLabel(agent, id) {
-  const info = state.agents[agent]
-  const found = info && info.models && info.models.find((m) => m.id === id)
+  const models = (state.agents[agent] || {}).models || []
+  const found = models.find(
+    (m) => m.id !== 'default' && (m.id === id || m.resolved === id || (m.variants && Object.values(m.variants).includes(id)))
+  )
   return found ? found.label : id
 }
 function toolSummary(input) {
@@ -47,8 +50,9 @@ function partHtml(msg, part, index) {
 function metaHtml(msg) {
   const m = msg.meta || {}
   const bits = []
-  const model = m.resolvedModel || (m.model && m.model !== 'default' ? modelLabel(msg.agent, m.model) : '')
-  if (model) bits.push(esc(model))
+  const model = m.resolvedModel || (m.model !== 'default' && m.model)
+  if (model) bits.push(esc(modelLabel(msg.agent, model)))
+  if (m.effort) bits.push(`노력 ${EFFORT_LABEL[m.effort] || esc(m.effort)}`)
   if (msg.status === 'streaming') {
     bits.push(`<span class="elapsed" data-started="${msg.createdAt}"></span>`)
   } else {
@@ -108,32 +112,31 @@ function assistantMessageEl(msg) {
           <button class="act copy" title="답변 복사">복사</button>
           <button class="act pass agent-${other}" title="${LABEL[other]}에게 이 답변 검토 맡기기">↪ ${LABEL[other]}에게 넘기기</button>
         </div>`
-  const node = el(
+  return el(
     `<div class="msg assistant agent-${msg.agent} ${msg.status}" data-id="${msg.id}">
       <div class="msg-head"><span class="avatar">${ICON[msg.agent]}</span><span class="name">${LABEL[msg.agent]}</span></div>
       <div class="msg-body">${body}${waiting}${blank}${error}${denied}${msg.status === 'streaming' && !waiting ? '<span class="cursor"></span>' : ''}</div>
       <div class="msg-foot"><span class="meta">${metaHtml(msg)}</span>${actions}</div>
     </div>`
   )
-  const copy = node.querySelector('.act.copy')
-  if (copy) {
-    copy.addEventListener('click', () => {
-      const text = msg.parts.filter((p) => p.kind === 'text').map((p) => p.text).join('\n\n')
-      navigator.clipboard.writeText(text).then(() => toast('복사했습니다'))
-    })
+}
+
+// 답변 아래 버튼: 복사, 상대에게 검토 맡기기.
+function onMessageAction(btn) {
+  const id = btn.closest('.msg').dataset.id
+  const msg = state.current && state.current.messages.find((m) => m.id === id)
+  if (!msg) return
+  if (btn.classList.contains('copy')) {
+    const text = msg.parts.filter((p) => p.kind === 'text').map((p) => p.text).join('\n\n')
+    navigator.clipboard.writeText(text).then(() => toast('복사했습니다'))
+  } else if (btn.classList.contains('pass')) {
+    setTarget(OTHER[msg.agent])
+    const input = $('#input')
+    input.value = `위 ${LABEL[msg.agent]}의 답변을 검토하고, 틀리거나 빠진 부분은 바로잡아서 이어서 진행해줘.`
+    autosize()
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
   }
-  const pass = node.querySelector('.act.pass')
-  if (pass) {
-    pass.addEventListener('click', () => {
-      setTarget(other)
-      const input = $('#input')
-      input.value = `위 ${LABEL[msg.agent]}의 답변을 검토하고, 틀리거나 빠진 부분은 바로잡아서 이어서 진행해줘.`
-      autosize()
-      input.focus()
-      input.setSelectionRange(input.value.length, input.value.length)
-    })
-  }
-  return node
 }
 
 function messageEl(msg) {
@@ -152,7 +155,7 @@ function emptyStateEl() {
       <span class="card-sub">${info.available ? esc(info.version || '') : 'CLI를 찾을 수 없음'}</span>
     </button>`
   }).join('<span class="swap">⇄</span>')
-  const node = el(
+  return el(
     `<div class="empty">
       <h1>누구에게 먼저 물어볼까요?</h1>
       <p class="lead">한 대화창에서 Claude와 Antigravity에게 번갈아 보낼 수 있어요.<br>상대 에이전트가 나눈 대화는 다음 차례에 자동으로 전달됩니다.</p>
@@ -164,13 +167,6 @@ function emptyStateEl() {
       </div>
     </div>`
   )
-  node.querySelectorAll('.agent-card').forEach((b) =>
-    b.addEventListener('click', () => {
-      setTarget(b.dataset.agent)
-      $('#input').focus()
-    })
-  )
-  return node
 }
 
 function nearBottom() {
@@ -240,7 +236,16 @@ export function bindMessages() {
     },
     true
   )
+  // Why: 스트리밍 중에는 메시지 노드를 계속 새로 그리므로, 버튼 이벤트는 노드마다 달지 않고 여기서 한 번에 받는다.
   box.addEventListener('click', (e) => {
+    const card = e.target.closest('.agent-card')
+    if (card) {
+      setTarget(card.dataset.agent)
+      $('#input').focus()
+      return
+    }
+    const act = e.target.closest('.act')
+    if (act) return onMessageAction(act)
     const copyBtn = e.target.closest('.copy-code')
     if (copyBtn) {
       const code = copyBtn.closest('.code').querySelector('code').textContent
