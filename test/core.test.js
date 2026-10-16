@@ -337,6 +337,7 @@ test('antigravity: /usage 남은 비율을 사용률로, mcp list 표를 읽는�
     { label: '5시간', usedPercent: 10.5, resetsAt: '2026-10-16T05:14:36Z' },
     { label: '주간', usedPercent: 0, resetsAt: null }
   ])
+  assert.equal(usage.plan, 'Antigravity Pro')
   assert.equal(antigravity.usageProbe.parse('{"status":"SUCCESS","response":"모델 답변"}'), null, '명령 응답이 아니면 버린다')
   assert.ok(!antigravity.usageProbe.args.includes('--disable-slash-commands'), '/usage가 일반 프롬프트로 가면 턴을 쓴다')
 

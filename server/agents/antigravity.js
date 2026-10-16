@@ -108,7 +108,7 @@ function parseUsage(stdout) {
   const data = obj && obj.command && obj.command.name === 'usage' ? obj.command.data : null
   if (!data || !Array.isArray(data.groups)) return null
   return {
-    plan: null,
+    plan: detectPlan(data),
     groups: data.groups.map((g) => ({
       name: g.name,
       hint: g.description || undefined,
@@ -122,6 +122,22 @@ function parseUsage(stdout) {
     })),
     notes: []
   }
+}
+
+function detectPlan(data) {
+  if (!data || !Array.isArray(data.groups)) return 'Antigravity Pro'
+  const groups = data.groups
+  const argonGroup = groups.find((g) => /argon/i.test(g.name))
+  if (argonGroup) {
+    const desc = argonGroup.description || ''
+    if (/ultra/i.test(desc) && !/for paid pro plans/i.test(desc)) {
+      return 'Antigravity Ultra'
+    }
+    return 'Antigravity Pro'
+  }
+  const has3p = groups.some((g) => /claude|gpt|3p/i.test(g.name))
+  if (has3p) return 'Antigravity Pro'
+  return 'Antigravity Pro'
 }
 
 // ── MCP ── `agy mcp list`는 설정 표(NAME TYPE STATUS COMMAND/URL)만 보여 준다 (연결 확인은 하지 않음).
