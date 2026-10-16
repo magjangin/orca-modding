@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="duo-token" content="%%DUO_TOKEN%%" />
+    <title>Orca Duo</title>
+    <link rel="icon" href="/icon.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <aside id="sidebar">
+      <div class="brand">
+        <img src="/icon.svg" alt="" width="26" height="26" />
+        <span>Orca Duo</span>
+      </div>
+      <button id="new-chat" class="new-chat" title="새 대화 (Ctrl+N)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        새 대화
+      </button>
+      <div class="list-label">대화</div>
+      <nav id="conv-list" class="conv-list" aria-label="대화 목록"></nav>
+      <div class="sidebar-foot">
+        <div id="agent-status"></div>
+        <button id="open-settings" class="ghost-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          설정
+        </button>
+      </div>
+    </aside>
+    <div id="scrim"></div>
+
+    <main id="main">
+      <header id="topbar">
+        <button id="toggle-sidebar" class="icon-btn" aria-label="대화 목록 열기">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div id="conv-title" class="conv-title-main" title="두 번 클릭해서 이름 바꾸기">새 대화</div>
+        <div id="session-badges" class="session-badges"></div>
+        <div class="spacer"></div>
+        <div class="folder-group">
+          <button id="folder-chip" class="folder-chip" title="">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <span class="folder-name">폴더 선택</span>
+          </button>
+          <button id="open-folder" class="icon-btn" title="탐색기에서 열기" aria-label="탐색기에서 열기">
+            <svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <section id="messages" aria-live="polite"></section>
+
+      <footer id="composer-wrap">
+        <div id="composer" data-agent="claude">
+          <div class="composer-top">
+            <div id="target-switch" class="target-switch" role="radiogroup" aria-label="보낼 대상">
+              <button type="button" data-agent="claude" role="radio">
+                <span class="avatar xs"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18"/></g></svg></span>
+                Claude
+              </button>
+              <button type="button" data-agent="antigravity" role="radio">
+                <span class="avatar xs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5 12 5l7.5 14.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15.2" r="2.1" fill="currentColor"/></svg></span>
+                Antigravity
+              </button>
+            </div>
+            <span class="tab-hint"><kbd>Tab</kbd> 전환</span>
+            <span id="composer-status" class="composer-status"></span>
+          </div>
+          <textarea id="input" rows="1" placeholder="메시지 보내기…" spellcheck="false"></textarea>
+          <div class="composer-bar">
+            <label class="select-wrap" title="모델">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              <select id="model-select" aria-label="모델"></select>
+            </label>
+            <label class="select-wrap" title="권한">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              <select id="perm-select" aria-label="권한"></select>
+            </label>
+            <button id="alt-toggle" type="button" class="chip" aria-pressed="true" title="보낼 때마다 대상을 자동으로 바꿉니다">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              자동 번갈기
+            </button>
+            <label class="select-wrap" title="답변이 끝나면 상대 에이전트에게 자동으로 넘겨 검토시킵니다">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <select id="relay-select" aria-label="자동 핑퐁">
+                <option value="0">핑퐁 끔</option>
+                <option value="1">핑퐁 1회</option>
+                <option value="2">핑퐁 2회</option>
+                <option value="3">핑퐁 3회</option>
+                <option value="5">핑퐁 5회</option>
+              </select>
+            </label>
+            <span class="spacer"></span>
+            <button id="send" class="send" type="button" aria-label="보내기"></button>
+          </div>
+        </div>
+        <div class="hint">Enter 보내기 · Shift+Enter 줄바꿈 · Esc 멈추기 · 상대가 나눈 대화는 다음 차례에 자동 전달</div>
+      </footer>
+    </main>
+
+    <dialog id="folder-dialog">
+      <form id="folder-form" method="dialog">
+        <h3>작업 폴더</h3>
+        <p class="note">Claude와 Antigravity가 이 폴더에서 함께 작업합니다.</p>
+        <div class="row">
+          <input id="folder-input" type="text" spellcheck="false" placeholder="C:\path\to\project" />
+          <button type="button" id="folder-browse" class="ghost-btn">찾아보기…</button>
+        </div>
+        <div id="folder-recent"></div>
+        <p id="folder-warn" class="warn" hidden>대화 중에 폴더를 바꾸면 두 에이전트 모두 새 세션으로 시작하고, 지금까지의 대화는 컨텍스트로 넘겨줍니다.</p>
+        <menu>
+          <button value="cancel" class="ghost-btn" formnovalidate>취소</button>
+          <button value="ok" class="primary">적용</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="settings-dialog">
+      <form id="settings-form" method="dialog">
+        <h3>설정</h3>
+        <label class="field">
+          <span>자동 핑퐁 / 넘기기 지시문</span>
+          <textarea id="set-relay" rows="4"></textarea>
+          <small>핑퐁이 켜져 있으면 답변이 끝날 때마다 이 문장과 함께 상대 에이전트에게 넘어갑니다.</small>
+        </label>
+        <label class="field">
+          <span>Claude CLI 경로</span>
+          <input id="set-claude" type="text" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span>Antigravity CLI(agy) 경로</span>
+          <input id="set-agy" type="text" spellcheck="false" />
+        </label>
+        <p class="note">대화 저장 위치: <code id="set-datadir"></code></p>
+        <menu>
+          <button value="cancel" class="ghost-btn" formnovalidate>닫기</button>
+          <button value="save" class="primary">저장</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <div id="toasts" aria-live="polite"></div>
+    <script src="/markdown.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

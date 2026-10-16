@@ -1,0 +1,15 @@
+{
+  "name": "orca-duo",
+  "version": "0.1.0",
+  "description": "Claude와 Antigravity를 한 대화창에서 번갈아 부르는 데스크톱 앱 (Orca 에이전트 코어 이식)",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "web": "node server/index.js --open",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0"
+  }
+}
