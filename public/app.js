@@ -432,11 +432,33 @@
     $('#model-select').innerHTML = models
       .map((m) => `<option value="${esc(m.id)}"${m.id === pref.model ? ' selected' : ''}>${esc(m.label)}</option>`)
       .join('')
-    $('#perm-select').innerHTML = PERMISSIONS.map(
-      (p) => `<option value="${p.id}"${p.id === pref.permission ? ' selected' : ''} title="${esc(p.hint)}">${p.label}</option>`
-    ).join('')
-    $('#perm-select').dataset.level = pref.permission
-    $('#perm-select').title = (PERMISSIONS.find((p) => p.id === pref.permission) || {}).hint || ''
+    const curPerm = PERMISSIONS.find((p) => p.id === pref.permission) || PERMISSIONS[1]
+    const permBtn = $('#perm-dropdown-btn')
+    if (permBtn) {
+      $('#perm-label').textContent = curPerm.label
+      permBtn.dataset.level = pref.permission
+      permBtn.title = curPerm.hint
+    }
+    const permMenu = $('#perm-dropdown-menu')
+    if (permMenu) {
+      permMenu.innerHTML = PERMISSIONS.map(
+        (p) => `<button type="button" class="custom-dropdown-item${p.id === pref.permission ? ' selected' : ''}" data-id="${p.id}" data-level="${p.id}" title="${esc(p.hint)}">
+          <span>${esc(p.label)}</span>
+          <svg class="check-icon" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>`
+      ).join('')
+      permMenu.querySelectorAll('.custom-dropdown-item').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const newId = item.dataset.id
+          state.prefs[state.target].permission = newId
+          savePrefs()
+          renderComposer()
+          $('#perm-dropdown-wrap').classList.remove('open')
+          if (newId === 'full') toast(`${LABEL[state.target]}가 확인 없이 명령까지 실행합니다`, 'warn')
+        })
+      })
+    }
 
     $('#alt-toggle').classList.toggle('on', state.autoAlternate)
     $('#alt-toggle').setAttribute('aria-pressed', String(state.autoAlternate))
@@ -803,12 +825,17 @@
       state.prefs[state.target].model = e.target.value
       savePrefs()
     })
-    $('#perm-select').addEventListener('change', (e) => {
-      state.prefs[state.target].permission = e.target.value
-      savePrefs()
-      renderComposer()
-      if (e.target.value === 'full') toast(`${LABEL[state.target]}가 확인 없이 명령까지 실행합니다`, 'warn')
-    })
+    const permWrap = $('#perm-dropdown-wrap')
+    const permBtn = $('#perm-dropdown-btn')
+    if (permBtn && permWrap) {
+      permBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        permWrap.classList.toggle('open')
+      })
+      document.addEventListener('click', (e) => {
+        if (!permWrap.contains(e.target)) permWrap.classList.remove('open')
+      })
+    }
     $('#alt-toggle').addEventListener('click', () => {
       state.autoAlternate = !state.autoAlternate
       savePrefs()

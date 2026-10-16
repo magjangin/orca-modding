@@ -73,10 +73,14 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
               <select id="model-select" aria-label="모델"></select>
             </label>
-            <label class="select-wrap" title="권한">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-              <select id="perm-select" aria-label="권한"></select>
-            </label>
+            <div class="custom-dropdown-wrap" id="perm-dropdown-wrap">
+              <button type="button" class="custom-select-btn" id="perm-dropdown-btn" title="권한">
+                <svg viewBox="0 0 24 24" style="width:15px; height:15px;" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                <span id="perm-label">편집 허용</span>
+                <span class="caret"><svg viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </button>
+              <div class="custom-dropdown-menu" id="perm-dropdown-menu"></div>
+            </div>
             <button id="alt-toggle" type="button" class="chip" aria-pressed="true" title="보낼 때마다 대상을 자동으로 바꿉니다">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               자동 번갈기
