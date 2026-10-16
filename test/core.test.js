@@ -216,6 +216,23 @@ test('mention: 한글 멘션도 대상과 본문을 나눈다', async () => {
   assert.equal(parseMention('메일은 a@claude 로'), null)
 })
 
+test('markdown: 로컬 파일 링크 및 Windows 드라이브 경로 링크를 지원한다', async () => {
+  const { renderMarkdown } = await import('../public/js/markdown.js')
+  const out1 = renderMarkdown('[Mod.cs](file:///H:/source/repos/mod/Mod.cs#L10)')
+  assert.ok(out1.includes('class="file-link"'))
+  assert.ok(out1.includes('href="file:///H:/source/repos/mod/Mod.cs#L10"'))
+
+  const out2 = renderMarkdown('[Main.cs](H:\\source\\repos\\Main.cs)')
+  assert.ok(out2.includes('class="file-link"'))
+
+  const out3 = renderMarkdown('[index.js](server/index.js)')
+  assert.ok(out3.includes('class="file-link"'))
+
+  const out4 = renderMarkdown('[Docs](https://example.com)')
+  assert.ok(out4.includes('href="https://example.com"'))
+  assert.ok(!out4.includes('class="file-link"'))
+})
+
 test('desktop: 탐색기 /select 인자는 경로만 따옴표로 감싼다', () => {
   assert.equal(explorerArg('C:\\a b\\c.txt', false), '/select,"C:\\a b\\c.txt"')
   assert.equal(explorerArg('C:\\a b', true), '"C:\\a b"')

@@ -186,7 +186,8 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
 
     if (route === 'open-path' && method === 'POST') {
       const body = await readBody(req)
-      const p = typeof body.path === 'string' ? body.path : ''
+      let p = typeof body.path === 'string' ? body.path.trim() : ''
+      if (p && !path.isAbsolute(p) && validDir(body.cwd)) p = path.resolve(body.cwd, p)
       if (!p || !fs.existsSync(p)) throw new HttpError(404, `경로가 없습니다: ${p}`)
       desktop.revealPath(p)
       return json(res, 200, { ok: true })

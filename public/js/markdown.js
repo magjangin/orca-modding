@@ -6,8 +6,11 @@ function esc(s) {
 
 function link(href, text) {
   // href는 이미 이스케이프된 상태
-  if (!/^(https?:|file:|mailto:)/i.test(href)) return text
-  const cls = /^file:/i.test(href) ? ' class="file-link"' : ''
+  const isWeb = /^https?:/i.test(href)
+  const isMail = /^mailto:/i.test(href)
+  const isFile = /^file:/i.test(href) || /^[a-zA-Z]:[/\\]/.test(href) || (/\.[a-z0-9]{1,8}(#.*)?$/i.test(href) && !isWeb && !isMail)
+  if (!isWeb && !isMail && !isFile) return text
+  const cls = isFile ? ' class="file-link"' : ''
   return `<a href="${href}"${cls} target="_blank" rel="noopener noreferrer">${text}</a>`
 }
 

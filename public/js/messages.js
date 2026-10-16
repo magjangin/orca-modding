@@ -1,5 +1,5 @@
 // 대화 본문: 메시지 그리기, 스트리밍 갱신, 경과 시간, 코드 복사·파일 링크.
-import { $, esc, el, state, AGENTS, LABEL, OTHER, ICON, EFFORT_LABEL, api, fmtDuration, toast } from './core.js'
+import { $, esc, el, state, AGENTS, LABEL, OTHER, ICON, EFFORT_LABEL, api, fmtDuration, currentCwd, toast } from './core.js'
 import { renderMarkdown } from './markdown.js'
 import { autosize, setTarget } from './composer.js'
 
@@ -97,7 +97,7 @@ function assistantMessageEl(msg) {
       : ''
   const error = msg.status === 'error' ? `<div class="error-box"><b>오류</b><pre>${esc(msg.error || '')}</pre></div>` : ''
   const blank =
-    msg.status === 'done' && !msg.parts.some((p) => p.kind === 'text' && p.text.trim())
+    msg.status === 'done' && !msg.parts.some((p) => (p.kind === 'text' && p.text.trim()) || p.kind === 'tool')
       ? '<div class="blank-reply">(답변 텍스트 없음)</div>'
       : ''
   const denied =
@@ -220,7 +220,7 @@ function openFileLink(link) {
   let p = decodeURIComponent(link.getAttribute('href').replace(/^file:\/\/\/?/i, ''))
   p = p.replace(/#.*$/, '')
   if (/^[a-z]:\//i.test(p)) p = p.replace(/\//g, '\\')
-  api('POST', '/api/open-path', { path: p }).catch((err) => toast(err.message, 'error'))
+  api('POST', '/api/open-path', { path: p, cwd: currentCwd() }).catch((err) => toast(err.message, 'error'))
 }
 
 export function bindMessages() {
