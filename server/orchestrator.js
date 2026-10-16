@@ -55,14 +55,16 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
     if (!info) throw new HttpError(400, '알 수 없는 에이전트')
     if (!info.binary) throw new HttpError(400, `${info.adapter.label} CLI(${info.adapter.binaryName})를 찾을 수 없습니다. 설정에서 경로를 지정하세요`)
     if (!conv.cwd || !fs.existsSync(conv.cwd)) throw new HttpError(400, `작업 폴더가 없습니다: ${conv.cwd}`)
-    const text = String(body.text || '').trim()
+    const attachments = Array.isArray(body.attachments) ? body.attachments : []
+    let text = String(body.text || '').trim()
+    if (!text && attachments.length) text = '첨부된 스크린샷 이미지를 분석해줘.'
     if (!text) throw new HttpError(400, '빈 메시지')
 
     const prefs = normalizePrefs(body.prefs)
     const relayRounds = Math.max(0, Math.min(10, Number(body.relayRounds) || 0))
 
     const now = Date.now()
-    const userMsg = { id: store.newId(), role: 'user', agent, text, createdAt: now, auto: Boolean(body.auto) }
+    const userMsg = { id: store.newId(), role: 'user', agent, text, attachments, createdAt: now, auto: Boolean(body.auto) }
     conv.messages.push(userMsg)
     const userIndex = conv.messages.length - 1
     const { prompt, handoffCount } = buildPrompt(conv, agent, userIndex)
@@ -77,7 +79,7 @@ function createOrchestrator({ agents, broadcast, getSettings }) {
       createdAt: now
     }
     conv.messages.push(asst)
-    if (conv.title === '새 대화' && !body.auto) conv.title = text.replace(/\s+/g, ' ').slice(0, 48)
+    if (conv.title === '새 대화' && !body.auto) conv.title = (text || '첨부 이미지').replace(/\s+/g, ' ').slice(0, 48)
     conv.updatedAt = now
 
     broadcast({ type: 'message', convId, message: userMsg })

@@ -193,6 +193,38 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
       return json(res, 200, { ok: true })
     }
 
+    if (route === 'upload-image' && method === 'POST') {
+      const body = await readBody(req)
+      const dataUri = typeof body.data === 'string' ? body.data : ''
+      const match = dataUri.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,(.+)$/i)
+      if (!match) throw new HttpError(400, '올바른 base64 이미지 데이터가 아닙니다')
+      const ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase()
+      const buf = Buffer.from(match[2], 'base64')
+      const id = store.newId()
+      const filename = `${id}.${ext}`
+      const targetPath = path.join(store.ATTACHMENTS_DIR, filename)
+      fs.writeFileSync(targetPath, buf)
+      return json(res, 200, {
+        id,
+        filename,
+        path: targetPath,
+        url: `/api/attachments/${filename}`,
+        name: typeof body.name === 'string' && body.name ? body.name : filename,
+        size: buf.length
+      })
+    }
+
+    if (route === 'attachments' && method === 'GET' && id) {
+      if (!/^[0-9a-f-]{36}\.(png|jpg|jpeg|webp|gif)$/i.test(id)) throw new HttpError(400, '잘못된 파일명')
+      const targetPath = path.join(store.ATTACHMENTS_DIR, id)
+      if (!fs.existsSync(targetPath)) throw new HttpError(404, '이미지를 찾을 수 없습니다')
+      const ext = path.extname(targetPath).toLowerCase()
+      const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : `image/${ext.slice(1)}`
+      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=86400' })
+      fs.createReadStream(targetPath).pipe(res)
+      return
+    }
+
     if (route === 'conversations') return handleConversation(req, res, id, action)
 
     throw new HttpError(404, '없는 API')

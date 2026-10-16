@@ -38,9 +38,20 @@ function unseenMessages(conv, agent, beforeIndex) {
     .filter((m) => m.role !== 'system' && (m.agent !== agent || !conv.sessions[agent]))
 }
 
+function formatUserPrompt(m) {
+  let text = m.text || ''
+  if (m.attachments && m.attachments.length) {
+    const paths = m.attachments.map((a) => a.path).filter(Boolean)
+    if (paths.length) {
+      text = `[첨부 이미지: ${paths.join(', ')}]\n\n${text}`
+    }
+  }
+  return text
+}
+
 function renderEntry(m) {
   if (m.role === 'user') {
-    return `[사용자 → ${LABEL[m.agent]}]\n${clip(m.text, PER_MESSAGE_LIMIT)}`
+    return `[사용자 → ${LABEL[m.agent]}]\n${clip(formatUserPrompt(m), PER_MESSAGE_LIMIT)}`
   }
   return `[${LABEL[m.agent]}의 답변]\n${clip(assistantText(m) || '(빈 응답)', PER_MESSAGE_LIMIT)}`
 }
@@ -49,7 +60,7 @@ function renderEntry(m) {
  * @returns {{prompt:string, handoffCount:number}}
  */
 function buildPrompt(conv, agent, userIndex) {
-  const userText = conv.messages[userIndex].text
+  const userText = formatUserPrompt(conv.messages[userIndex])
   const unseen = unseenMessages(conv, agent, userIndex)
   if (unseen.length === 0) return { prompt: userText, handoffCount: 0 }
 
@@ -72,4 +83,4 @@ function buildPrompt(conv, agent, userIndex) {
   return { prompt, handoffCount: unseen.length }
 }
 
-module.exports = { buildPrompt }
+module.exports = { buildPrompt, formatUserPrompt }

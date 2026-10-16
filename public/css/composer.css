@@ -16,9 +16,61 @@
   padding: 10px 12px 10px 14px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+#composer.drag-over {
+  border-color: var(--agent);
+  background: var(--agent-soft);
+}
 #composer[data-agent='antigravity'] {
   --agent: var(--agy);
   --agent-soft: var(--agy-soft);
+}
+.composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 0 2px;
+}
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 6px 3px 4px;
+  font-size: 12px;
+  max-width: 220px;
+}
+.attach-chip img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.attach-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+  color: var(--text);
+}
+.attach-chip-remove {
+  background: none;
+  border: none;
+  color: var(--faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.attach-chip-remove:hover {
+  color: var(--danger);
+  background: var(--hover);
+}
+.attach-btn svg {
+  width: 15px;
+  height: 15px;
 }
 .composer-top {
   display: flex;

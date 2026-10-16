@@ -68,6 +68,15 @@ function userMessageEl(msg) {
   const handoff = msg.handoffCount
     ? `<div class="handoff">↪ ${LABEL[OTHER[msg.agent]]} 쪽 대화 ${msg.handoffCount}개를 함께 전달</div>`
     : ''
+  const attachHtml =
+    msg.attachments && msg.attachments.length
+      ? `<div class="msg-attachments">${msg.attachments
+          .map(
+            (a) =>
+              `<a href="${a.url}" target="_blank" rel="noopener noreferrer" class="msg-attach-item"><img src="${a.url}" alt="${esc(a.name || '이미지')}" /><span class="msg-attach-name">${esc(a.name || '이미지')}</span></a>`
+          )
+          .join('')}</div>`
+      : ''
   if (msg.auto) {
     const key = `${msg.id}:auto`
     return el(
@@ -75,6 +84,7 @@ function userMessageEl(msg) {
         <details data-key="${key}"${openDetails.has(key) ? ' open' : ''}>
           <summary><span class="relay-pill">⇄ 자동 핑퐁 → ${LABEL[msg.agent]}</span></summary>
           <div class="relay-text">${esc(msg.text)}</div>
+          ${attachHtml}
         </details>
         ${handoff}
       </div>`
@@ -83,7 +93,7 @@ function userMessageEl(msg) {
   return el(
     `<div class="msg user agent-${msg.agent}" data-id="${msg.id}">
       <div class="to-pill"><span class="avatar xs">${ICON[msg.agent]}</span>${LABEL[msg.agent]}에게</div>
-      <div class="bubble">${esc(msg.text)}</div>
+      <div class="bubble">${esc(msg.text)}${attachHtml}</div>
       ${handoff}
     </div>`
   )

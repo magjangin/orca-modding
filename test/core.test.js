@@ -436,3 +436,36 @@ test('failover: 쿼터/사용량 초과/Rate limit 에러 패턴을 정확히 �
     assert.ok(!QUOTA_ERROR_RE.test(err), `일반 에러는 쿼터로 오인하지 않음: ${err}`)
   }
 })
+
+test('attachments: 첨부 이미지가 있으면 프롬프트에 경로를 포함한다', () => {
+  const attachUser = (agent, text, attachments) => ({
+    id: 'u',
+    role: 'user',
+    agent,
+    text,
+    attachments,
+    createdAt: Date.now()
+  })
+  const c = conv(
+    [
+      attachUser('claude', '이 스크린샷 에러 분석해줘', [{ path: 'C:\\test\\shot.png', name: 'shot.png' }])
+    ],
+    { claude: -1, antigravity: -1 },
+    { claude: null, antigravity: null }
+  )
+  const { prompt } = buildPrompt(c, 'claude', 0)
+  assert.match(prompt, /\[첨부 이미지: C:\\test\\shot\.png\]\n\n이 스크린샷 에러 분석해줘/)
+
+  const c2 = conv(
+    [
+      attachUser('claude', '에러 났어', [{ path: 'C:\\img\\1.png' }]),
+      a('claude', '확인해볼게요'),
+      u('antigravity', '수정해줘')
+    ],
+    { claude: 1, antigravity: -1 },
+    { claude: 's1', antigravity: null }
+  )
+  const p2 = buildPrompt(c2, 'antigravity', 2).prompt
+  assert.match(p2, /\[사용자 → Claude\]\n\[첨부 이미지: C:\\img\\1\.png\]/)
+})
+

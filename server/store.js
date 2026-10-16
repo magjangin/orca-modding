@@ -7,10 +7,12 @@ const crypto = require('node:crypto')
 
 const DATA_DIR = process.env.ORCA_DUO_DATA || path.join(os.homedir(), '.orca-duo')
 const CONV_DIR = path.join(DATA_DIR, 'conversations')
+const ATTACHMENTS_DIR = path.join(DATA_DIR, 'attachments')
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json')
 const MODEL_CACHE_FILE = path.join(DATA_DIR, 'models.json')
 
 fs.mkdirSync(CONV_DIR, { recursive: true })
+fs.mkdirSync(ATTACHMENTS_DIR, { recursive: true })
 
 const cache = new Map()
 const pending = new Map()
@@ -163,6 +165,7 @@ loadAll()
 
 module.exports = {
   DATA_DIR,
+  ATTACHMENTS_DIR,
   newId,
   list,
   get,

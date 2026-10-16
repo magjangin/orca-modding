@@ -77,9 +77,15 @@
             <span class="tab-hint"><kbd>Tab</kbd> 전환</span>
             <span id="composer-status" class="composer-status"></span>
           </div>
+          <div id="composer-attachments" class="composer-attachments" hidden></div>
           <textarea id="input" rows="1" placeholder="메시지 보내기…" spellcheck="false"></textarea>
           <div class="composer-bar">
             <!-- 펼침 메뉴는 js/dropdown.js가 채운다 -->
+            <button id="attach-btn" type="button" class="chip attach-btn" title="이미지 첨부 (Ctrl+V 붙여넣기 또는 드래그 가능)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              이미지
+            </button>
+            <input type="file" id="attach-file-input" accept="image/*" multiple hidden />
             <div class="custom-dropdown-wrap" id="model-dropdown-wrap"></div>
             <div class="custom-dropdown-wrap" id="effort-dropdown-wrap"></div>
             <div class="custom-dropdown-wrap" id="perm-dropdown-wrap"></div>

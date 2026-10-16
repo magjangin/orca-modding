@@ -22,6 +22,72 @@ const SEND_ICON = svg('<path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" fill="none" stro
 const STOP_ICON = svg('<rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/>')
 
 let menus = null
+let currentAttachments = []
+
+export function getAttachments() {
+  return currentAttachments
+}
+
+export function clearAttachments() {
+  currentAttachments = []
+  renderAttachments()
+}
+
+function renderAttachments() {
+  const box = $('#composer-attachments')
+  if (!box) return
+  if (!currentAttachments.length) {
+    box.hidden = true
+    box.innerHTML = ''
+    return
+  }
+  box.hidden = false
+  box.innerHTML = currentAttachments
+    .map(
+      (a, i) => `
+    <div class="attach-chip" data-index="${i}">
+      <img src="${a.url}" alt="${a.name || '첨부 이미지'}" />
+      <span class="attach-chip-name" title="${a.name || '이미지'}">${a.name || '이미지'}</span>
+      <button type="button" class="attach-chip-remove" data-index="${i}" title="삭제">×</button>
+    </div>`
+    )
+    .join('')
+  box.querySelectorAll('.attach-chip-remove').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const idx = Number(btn.dataset.index)
+      currentAttachments.splice(idx, 1)
+      renderAttachments()
+    })
+  })
+}
+
+async function uploadFile(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    toast('이미지 파일만 첨부할 수 있습니다', 'warn')
+    return
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    toast('이미지 크기는 8MB 이하여야 합니다', 'warn')
+    return
+  }
+  const reader = new FileReader()
+  const dataUrl = await new Promise((resolve, reject) => {
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+  try {
+    const res = await api('POST', '/api/upload-image', {
+      name: file.name || 'screenshot.png',
+      data: dataUrl
+    })
+    currentAttachments.push(res)
+    renderAttachments()
+  } catch (err) {
+    toast(`이미지 업로드 실패: ${err.message}`, 'error')
+  }
+}
 
 export function setTarget(agent) {
   state.target = agent
@@ -109,7 +175,8 @@ export function autosize() {
 async function send() {
   const input = $('#input')
   let text = input.value.trim()
-  if (!text) return
+  const attachmentsToSend = currentAttachments.slice()
+  if (!text && !attachmentsToSend.length) return
   if (state.current && isRunning(state.current.id)) {
     toast('아직 응답 중이에요. 멈추거나 끝난 뒤에 보내세요', 'warn')
     return
@@ -119,7 +186,7 @@ async function send() {
   if (mention) {
     target = mention.agent
     text = mention.text
-    if (!text) return
+    if (!text && !attachmentsToSend.length) return
   }
   if (!(state.agents[target] || {}).available) {
     toast(`${LABEL[target]} CLI를 찾을 수 없어요. 설정에서 경로를 지정하세요`, 'error')
@@ -127,6 +194,8 @@ async function send() {
   }
   const saved = input.value
   input.value = ''
+  currentAttachments = []
+  renderAttachments()
   autosize()
   try {
     if (!state.current) {
@@ -138,6 +207,7 @@ async function send() {
     await api('POST', `/api/conversations/${state.current.id}/send`, {
       agent: target,
       text,
+      attachments: attachmentsToSend,
       prefs: state.prefs,
       relayRounds: state.relayRounds
     })
@@ -145,6 +215,8 @@ async function send() {
     else if (target !== state.target) setTarget(target)
   } catch (err) {
     input.value = saved
+    currentAttachments = attachmentsToSend
+    renderAttachments()
     autosize()
     toast(err.message, 'error')
   }
@@ -226,4 +298,57 @@ export function bindComposer() {
     renderComposer()
     toast(state.autoAlternate ? '보낼 때마다 대상이 자동으로 바뀝니다' : '자동 번갈기를 껐습니다')
   })
+
+  // 이미지 첨부 버튼 & 파일 선택
+  const fileInput = $('#attach-file-input')
+  const attachBtn = $('#attach-btn')
+  if (attachBtn && fileInput) {
+    attachBtn.addEventListener('click', () => fileInput.click())
+    fileInput.addEventListener('change', () => {
+      for (const file of fileInput.files || []) {
+        uploadFile(file)
+      }
+      fileInput.value = ''
+    })
+  }
+
+  // 클립보드 붙여넣기 (스크린샷) 지원
+  document.addEventListener('paste', (e) => {
+    const items = (e.clipboardData || {}).items || []
+    let foundImage = false
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) {
+          uploadFile(file)
+          foundImage = true
+        }
+      }
+    }
+    if (foundImage) e.preventDefault()
+  })
+
+  // 드래그 앤 드롭 지원
+  const composer = $('#composer')
+  if (composer) {
+    composer.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      composer.classList.add('drag-over')
+    })
+    composer.addEventListener('dragleave', (e) => {
+      if (!composer.contains(e.relatedTarget)) {
+        composer.classList.remove('drag-over')
+      }
+    })
+    composer.addEventListener('drop', (e) => {
+      e.preventDefault()
+      composer.classList.remove('drag-over')
+      const files = (e.dataTransfer || {}).files || []
+      for (const file of files) {
+        if (file.type.startsWith('image/')) {
+          uploadFile(file)
+        }
+      }
+    })
+  }
 }
