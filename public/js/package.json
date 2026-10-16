@@ -1,0 +1,4 @@
+{
+  "//": "브라우저용 ES 모듈 폴더. 테스트(node)에서 mention.js 등을 불러올 때 ESM으로 읽게 한다.",
+  "type": "module"
+}

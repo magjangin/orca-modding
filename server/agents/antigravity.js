@@ -82,6 +82,62 @@ const MODEL_PROBE = {
   }
 }
 
+// ── 사용량 (Orca src/main/rate-limits/antigravity-usage-command.ts) ──
+// Why: agy는 구글 자격 증명을 OS 키링에 두고 직접 토큰을 받으므로 바깥에서 할당량 API를 부를 수 없다.
+// print 모드의 `/usage` 슬래시 명령은 대화를 시작하지 않고(num_turns 0, 토큰 0) 할당량만 돌려준다.
+// --disable-slash-commands를 붙이면 `/usage`가 일반 프롬프트로 가서 실제 턴을 쓰므로 붙이지 않는다.
+// 1.1.11 전에는 이 명령도 턴을 썼다.
+const WINDOW_LABEL = { '5h': '5시간', weekly: '주간', daily: '일간' }
+const USAGE_PROBE = {
+  args: ['-p', '/usage', '--output-format', 'json', '--print-timeout', '20s'],
+  stdin: null,
+  minVersion: '1.1.11',
+  parse: parseUsage
+}
+
+/** `/usage` json → { plan, groups: [{ name, hint, windows: [{ label, usedPercent, resetsAt }] }], notes } */
+function parseUsage(stdout) {
+  const start = String(stdout).indexOf('{')
+  if (start === -1) return null
+  let obj
+  try {
+    obj = JSON.parse(String(stdout).slice(start))
+  } catch {
+    return null
+  }
+  const data = obj && obj.command && obj.command.name === 'usage' ? obj.command.data : null
+  if (!data || !Array.isArray(data.groups)) return null
+  return {
+    plan: null,
+    groups: data.groups.map((g) => ({
+      name: g.name,
+      hint: g.description || undefined,
+      windows: (g.buckets || [])
+        .filter((b) => Number.isFinite(b.remaining_fraction))
+        .map((b) => ({
+          label: WINDOW_LABEL[b.window] || b.name,
+          usedPercent: Math.round((1 - b.remaining_fraction) * 1000) / 10,
+          resetsAt: b.reset_time || null
+        }))
+    })),
+    notes: []
+  }
+}
+
+// ── MCP ── `agy mcp list`는 설정 표(NAME TYPE STATUS COMMAND/URL)만 보여 준다 (연결 확인은 하지 않음).
+const MCP_PROBE = { args: ['mcp', 'list'], parse: parseMcpList }
+
+function parseMcpList(stdout) {
+  const servers = []
+  for (const line of String(stdout).split(/\r?\n/)) {
+    const cols = line.trim().split(/\s{2,}/)
+    if (cols.length < 4 || cols[0] === 'NAME') continue
+    const [name, type, status, ...rest] = cols
+    servers.push({ name, type: type.toLowerCase(), target: rest.join('  '), status: /^enabled$/i.test(status) ? 'enabled' : 'disabled' })
+  }
+  return servers
+}
+
 function toolStatus(state) {
   if (state === 'DONE') return 'done'
   if (state === 'ACTIVE' || state === 'PENDING' || state === 'RUNNING') return 'running'
@@ -151,6 +207,8 @@ module.exports = {
   binaryName: 'agy',
   models: [DEFAULT_MODEL],
   modelProbe: MODEL_PROBE,
+  usageProbe: USAGE_PROBE,
+  mcpProbe: MCP_PROBE,
   buildArgs,
   stdinPayload,
   buildEnv,

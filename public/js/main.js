@@ -6,6 +6,7 @@ import { bindHeader, renderHeader } from './header.js'
 import { bindMessages, renderMessages } from './messages.js'
 import { bindComposer, renderComposer, stop } from './composer.js'
 import { bindDialogs } from './dialogs.js'
+import { bindStatus } from './status.js'
 import { applyState, connectEvents } from './events.js'
 
 export function renderAll() {
@@ -23,6 +24,15 @@ export async function openConversation(id) {
     $('#input').focus()
   } catch (err) {
     toast(err.message, 'error')
+  }
+}
+
+/** 지워진 대화를 화면과 '마지막으로 연 대화' 기억에서 뺀다. */
+export function dropConversation(id) {
+  if (recall('duo.lastConv') === id) remember('duo.lastConv', '')
+  if (state.current && state.current.id === id) {
+    state.current = null
+    renderAll()
   }
 }
 
@@ -57,6 +67,7 @@ async function boot() {
   bindMessages()
   bindComposer()
   bindDialogs()
+  bindStatus()
   try {
     const s = await api('GET', '/api/state')
     applyState(s)

@@ -12,6 +12,9 @@ process.env.ORCA_DUO_DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'orca-duo-test
 const claude = require('../server/agents/claude')
 const antigravity = require('../server/agents/antigravity')
 const { resolveLaunch } = require('../server/agents/shared')
+const { fromCmdShim } = require('../server/agents/binary')
+const { versionAtLeast } = require('../server/agents')
+const { explorerArg } = require('../server/desktop')
 const { buildPrompt } = require('../server/handoff')
 const { QUOTA_ERROR_RE, normalizePrefs, createOrchestrator } = require('../server/orchestrator')
 const store = require('../server/store')
@@ -109,6 +112,7 @@ test('claude: list_models 응답에서 버전 붙은 이름과 노력 단계를 
       type: 'control_response',
       response: {
         subtype: 'success',
+        request_id: 'duo-list_models',
         response: {
           models: [
             { value: 'default', displayName: 'Default (recommended)', supportsEffort: true, supportedEffortLevels: ['high', 'low', 'max'] },
@@ -198,6 +202,137 @@ test('orchestrator: 고른 모델·노력이 CLI 인자까지 가고, 답변 met
   assert.equal(reply.status, 'done')
   assert.equal(reply.meta.effort, 'high')
   assert.equal(c.sessions.claude, 's-1')
+})
+
+test('mention: 한글 멘션도 대상과 본문을 나눈다', async () => {
+  const { parseMention } = await import('../public/js/mention.js')
+  assert.deepEqual(parseMention('@클로드 버그 찾아줘'), { agent: 'claude', text: '버그 찾아줘' })
+  assert.deepEqual(parseMention('@안티 고쳐줘'), { agent: 'antigravity', text: '고쳐줘' })
+  assert.deepEqual(parseMention('@안티그래비티: 검토'), { agent: 'antigravity', text: '검토' })
+  assert.deepEqual(parseMention('@agy, 해줘'), { agent: 'antigravity', text: '해줘' })
+  assert.deepEqual(parseMention('@claude'), { agent: 'claude', text: '' })
+  assert.equal(parseMention('@claudex 안녕'), null, '이름 뒤에 글자가 붙으면 멘션이 아니다')
+  assert.equal(parseMention('@안티프래질 책'), null)
+  assert.equal(parseMention('메일은 a@claude 로'), null)
+})
+
+test('desktop: 탐색기 /select 인자는 경로만 따옴표로 감싼다', () => {
+  assert.equal(explorerArg('C:\\a b\\c.txt', false), '/select,"C:\\a b\\c.txt"')
+  assert.equal(explorerArg('C:\\a b', true), '"C:\\a b"')
+})
+
+test('binary: npm .cmd 셈에서 실제 대상을 꺼낸다 (node.exe 줄은 건너뜀)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orca-duo-shim-'))
+  const touch = (rel) => {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true })
+    fs.writeFileSync(path.join(dir, rel), '')
+  }
+  const shim = (name, body) => {
+    fs.writeFileSync(path.join(dir, name), body)
+    return path.join(dir, name)
+  }
+  touch('node.exe')
+  touch('node_modules/tool/cli.js')
+  touch('node_modules/native/bin/native.exe')
+  const jsShim = shim(
+    'tool.cmd',
+    '@ECHO off\r\nIF EXIST "%dp0%\\node.exe" (\r\n  SET "_prog=%dp0%\\node.exe"\r\n)\r\nendLocal & "%_prog%"  "%dp0%\\node_modules\\tool\\cli.js" %*\r\n'
+  )
+  assert.deepEqual(fromCmdShim(jsShim), { path: path.join(dir, 'node.exe'), shell: false, args: [path.join(dir, 'node_modules', 'tool', 'cli.js')] })
+  const exeShim = shim('native.cmd', '@ECHO off\r\n"%~dp0\\node_modules\\native\\bin\\native.exe" %*\r\n')
+  assert.deepEqual(fromCmdShim(exeShim), { path: path.join(dir, 'node_modules', 'native', 'bin', 'native.exe'), shell: false, args: [] })
+  assert.equal(fromCmdShim(shim('none.cmd', '@ECHO off\r\n"%dp0%\\missing.exe" %*\r\n')), null)
+})
+
+test('claude: get_usage 한도와 mcp list 연결 상태를 읽는다', () => {
+  const usage = claude.usageProbe.parse(
+    JSON.stringify({
+      type: 'control_response',
+      response: {
+        subtype: 'success',
+        request_id: 'duo-get_usage',
+        response: {
+          subscription_type: 'pro',
+          rate_limits: {
+            limits: [
+              { kind: 'session', group: 'session', percent: 3, resets_at: '2026-10-16T09:00:00Z' },
+              { kind: 'weekly_scoped', group: 'weekly', percent: 40, scope: { model: { display_name: 'Fable' } } }
+            ],
+            extra_usage: { is_enabled: true, used_credits: 6250, decimal_places: 2, currency: 'USD' }
+          }
+        }
+      }
+    })
+  )
+  assert.equal(usage.plan, 'Claude Pro')
+  assert.deepEqual(usage.groups[0].windows, [
+    { label: '5시간', usedPercent: 3, resetsAt: '2026-10-16T09:00:00Z' },
+    { label: '주간 · Fable', usedPercent: 40, resetsAt: null }
+  ])
+  assert.deepEqual(usage.notes, ['추가 사용 크레딧 $62.50 사용'])
+  assert.equal(claude.usageProbe.parse('{"type":"control_response","response":{"subtype":"error","request_id":"duo-get_usage"}}'), null)
+
+  const servers = claude.mcpProbe.parse(
+    [
+      'Checking MCP server health…',
+      '',
+      'claude.ai Docs: https://api.example.com/mcp - ✔ Connected',
+      'plugin:x:fal: https://mcp.fal.ai/mcp (HTTP) - ✘ Failed to connect — HTTP 401',
+      'rea: C:\\Program Files\\nodejs\\node.exe rea.mjs mcp - ✔ Connected',
+      'linear: https://mcp.linear.app/sse (SSE) - ! Needs authentication',
+      // 파이프로 받을 때(유니코드 터미널 아님)의 대체 표시
+      'piped: https://p.dev/mcp - √ Connected',
+      'broken: node b.js - × Failed to connect'
+    ].join('\n')
+  )
+  assert.deepEqual(servers, [
+    { name: 'claude.ai Docs', type: 'http', target: 'https://api.example.com/mcp', status: 'connected' },
+    { name: 'plugin:x:fal', type: 'http', target: 'https://mcp.fal.ai/mcp', status: 'failed', detail: 'HTTP 401' },
+    { name: 'rea', type: 'stdio', target: 'C:\\Program Files\\nodejs\\node.exe rea.mjs mcp', status: 'connected' },
+    { name: 'linear', type: 'sse', target: 'https://mcp.linear.app/sse', status: 'needs-auth' },
+    { name: 'piped', type: 'http', target: 'https://p.dev/mcp', status: 'connected' },
+    { name: 'broken', type: 'stdio', target: 'node b.js', status: 'failed' }
+  ])
+})
+
+test('antigravity: /usage 남은 비율을 사용률로, mcp list 표를 읽는다', () => {
+  const usage = antigravity.usageProbe.parse(
+    JSON.stringify({
+      status: 'SUCCESS',
+      num_turns: 0,
+      command: {
+        name: 'usage',
+        data: {
+          groups: [
+            {
+              name: 'Gemini Models',
+              buckets: [
+                { window: '5h', name: 'Five Hour Limit Remaining', remaining_fraction: 0.895, reset_time: '2026-10-16T05:14:36Z' },
+                { window: 'weekly', name: 'Weekly', remaining_fraction: 1 }
+              ]
+            }
+          ]
+        }
+      }
+    })
+  )
+  assert.deepEqual(usage.groups[0].windows, [
+    { label: '5시간', usedPercent: 10.5, resetsAt: '2026-10-16T05:14:36Z' },
+    { label: '주간', usedPercent: 0, resetsAt: null }
+  ])
+  assert.equal(antigravity.usageProbe.parse('{"status":"SUCCESS","response":"모델 답변"}'), null, '명령 응답이 아니면 버린다')
+  assert.ok(!antigravity.usageProbe.args.includes('--disable-slash-commands'), '/usage가 일반 프롬프트로 가면 턴을 쓴다')
+
+  const servers = antigravity.mcpProbe.parse(
+    'NAME                  TYPE   STATUS    COMMAND/URL\nmodding-support-tool  stdio  enabled   H:\\tools\\Modding Tool.exe mcp\nweb                   http   disabled  https://x.dev/mcp\n'
+  )
+  assert.deepEqual(servers, [
+    { name: 'modding-support-tool', type: 'stdio', target: 'H:\\tools\\Modding Tool.exe mcp', status: 'enabled' },
+    { name: 'web', type: 'http', target: 'https://x.dev/mcp', status: 'disabled' }
+  ])
+  assert.ok(versionAtLeast('agy 1.3.6', '1.1.11'))
+  assert.ok(!versionAtLeast('1.1.9', '1.1.11'))
+  assert.ok(!versionAtLeast(null, '1.1.11'))
 })
 
 function conv(messages, seen, sessions) {

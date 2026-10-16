@@ -1,6 +1,6 @@
 // 서버 이벤트 스트림(SSE): 대화 목록·메시지 조각·실행 상태를 받아 화면에 반영한다.
 import { $, state, OTHER, api, eventsUrl, isRunning, toast } from './core.js'
-import { renderAll } from './main.js'
+import { dropConversation, renderAll } from './main.js'
 import { renderAgentStatus, renderSidebar } from './sidebar.js'
 import { renderHeader } from './header.js'
 import { renderMessages, upsertMessage } from './messages.js'
@@ -42,10 +42,14 @@ function onRunning(ev) {
 function handleEvent(ev) {
   const cur = state.current
   switch (ev.type) {
-    case 'conv-list':
+    case 'conv-list': {
+      // Why: 다른 창에서 지운 대화를 계속 보여 주면 보내기가 404가 된다. 목록에 있다가 빠진 경우만 지운 것으로 본다
+      // (방금 만든 대화는 아직 이전 목록에 없으므로 건드리지 않는다).
+      const removed = state.conversations.filter((c) => !ev.conversations.some((n) => n.id === c.id))
       state.conversations = ev.conversations
       renderSidebar()
-      if (cur) {
+      for (const c of removed) dropConversation(c.id)
+      if (cur && state.current === cur) {
         const s = ev.conversations.find((c) => c.id === cur.id)
         if (s && s.title !== cur.title) {
           cur.title = s.title
@@ -53,6 +57,7 @@ function handleEvent(ev) {
         }
       }
       return
+    }
     case 'message':
       if (cur && ev.convId === cur.id) upsertMessage(ev.message)
       return

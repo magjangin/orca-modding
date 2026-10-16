@@ -29,16 +29,18 @@ const MODELS = [
   { id: 'haiku', label: 'Haiku', efforts: [] }
 ]
 
-// Why: claude에는 모델 목록 명령이 없다. --print stream-json에 list_models 제어 요청 한 줄을 보내면
-// API 호출 없이 /model 선택지(표시 이름에 버전 포함, 모델별 노력 단계)를 돌려준다.
-// 사용자 설정을 읽지 않게(--setting-sources project, 빈 데이터 폴더에서 실행) 해서 SessionStart 훅이 돌지 않게 한다.
-const MODEL_PROBE = {
-  args: ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--setting-sources', 'project'],
-  stdin: JSON.stringify({ type: 'control_request', request_id: 'duo-models', request: { subtype: 'list_models' } }) + '\n',
-  parse: parseModels
+// ── 제어 요청 (모델 목록·사용량) ─────────────────────────
+// Why: --print stream-json에 control_request 한 줄을 보내면 API 턴 없이 CLI 내부 정보를 돌려준다
+// (list_models = /model 선택지, get_usage = /usage 한도). 사용자 설정을 읽지 않게(--setting-sources project,
+// 빈 데이터 폴더에서 실행) 해서 SessionStart 훅이 돌지 않게 한다.
+const CONTROL_ARGS = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--setting-sources', 'project']
+
+function controlRequest(subtype) {
+  return JSON.stringify({ type: 'control_request', request_id: `duo-${subtype}`, request: { subtype } }) + '\n'
 }
 
-function parseModels(stdout) {
+/** stdout에서 그 요청의 성공 응답 본문을 찾는다. 모르는 요청(구버전 CLI)이면 null. */
+function controlResponse(stdout, subtype) {
   for (const line of String(stdout).split(/\r?\n/)) {
     if (!line.includes('control_response')) continue
     let obj
@@ -48,23 +50,109 @@ function parseModels(stdout) {
       continue
     }
     const res = obj.response || {}
-    const raw = res.subtype === 'success' && res.response && res.response.models
-    if (!Array.isArray(raw)) continue
-    const seen = new Set()
-    const models = []
-    for (const m of raw) {
-      const id = m && typeof m.value === 'string' ? m.value.trim() : ''
-      // Why: 아직 못 쓰는 모델은 disabled 자리표시 줄로 오고, 그 value를 --model에 넘기면 실패한다.
-      if (!id || m.disabled === true || seen.has(id)) continue
-      seen.add(id)
-      const efforts = m.supportsEffort === true && Array.isArray(m.supportedEffortLevels) ? sortEfforts(m.supportedEffortLevels) : []
-      // Why: default 줄의 설명은 사용자 설정을 빼고 확인한 값이라 실제 기본 모델과 다를 수 있어 붙이지 않는다.
-      if (id === 'default') models.push({ id, label: '기본값', efforts })
-      else models.push({ id, label: m.displayName || id, hint: m.description || undefined, resolved: m.resolvedModel || undefined, efforts })
-    }
-    if (models.length) return models
+    if (res.request_id === `duo-${subtype}` && res.subtype === 'success') return res.response || {}
   }
-  return []
+  return null
+}
+
+const MODEL_PROBE = { args: CONTROL_ARGS, stdin: controlRequest('list_models'), parse: parseModels }
+const USAGE_PROBE = { args: CONTROL_ARGS, stdin: controlRequest('get_usage'), parse: parseUsage }
+// `claude mcp list`는 서버마다 실제로 붙어 보고(연결됨/실패/인증 필요) 사용자·프로젝트·플러그인 서버를 모두 보여 준다.
+const MCP_PROBE = { args: ['mcp', 'list'], parse: parseMcpList }
+
+function parseModels(stdout) {
+  const body = controlResponse(stdout, 'list_models')
+  if (!body || !Array.isArray(body.models)) return []
+  const seen = new Set()
+  const models = []
+  for (const m of body.models) {
+    const id = m && typeof m.value === 'string' ? m.value.trim() : ''
+    // Why: 아직 못 쓰는 모델은 disabled 자리표시 줄로 오고, 그 value를 --model에 넘기면 실패한다.
+    if (!id || m.disabled === true || seen.has(id)) continue
+    seen.add(id)
+    const efforts = m.supportsEffort === true && Array.isArray(m.supportedEffortLevels) ? sortEfforts(m.supportedEffortLevels) : []
+    // Why: default 줄의 설명은 사용자 설정을 빼고 확인한 값이라 실제 기본 모델과 다를 수 있어 붙이지 않는다.
+    if (id === 'default') models.push({ id, label: '기본값', efforts })
+    else models.push({ id, label: m.displayName || id, hint: m.description || undefined, resolved: m.resolvedModel || undefined, efforts })
+  }
+  return models
+}
+
+const LIMIT_LABEL = { session: '5시간', weekly_all: '주간', weekly_scoped: '주간' }
+const WINDOW_KEYS = [
+  ['five_hour', '5시간'],
+  ['seven_day', '주간'],
+  ['seven_day_opus', '주간 · Opus'],
+  ['seven_day_sonnet', '주간 · Sonnet']
+]
+
+function money(minor, decimals, currency) {
+  const n = (minor / 10 ** (decimals || 0)).toFixed(decimals || 0)
+  return currency === 'USD' ? `$${n}` : `${n} ${currency || ''}`.trim()
+}
+
+/** get_usage 응답 → { plan, groups: [{ name, windows: [{ label, usedPercent, resetsAt }] }], notes } */
+function parseUsage(stdout) {
+  const body = controlResponse(stdout, 'get_usage')
+  if (!body) return null
+  const rl = body.rate_limits || {}
+  const windows = []
+  if (Array.isArray(rl.limits) && rl.limits.length) {
+    for (const l of rl.limits) {
+      if (!l || !Number.isFinite(l.percent)) continue
+      const model = l.scope && l.scope.model && l.scope.model.display_name
+      const base = LIMIT_LABEL[l.kind] || (l.group === 'weekly' ? '주간' : l.kind)
+      windows.push({ label: model ? `${base} · ${model}` : base, usedPercent: l.percent, resetsAt: l.resets_at || null })
+    }
+  } else {
+    for (const [key, label] of WINDOW_KEYS) {
+      const w = rl[key]
+      if (w && Number.isFinite(w.utilization)) windows.push({ label, usedPercent: w.utilization, resetsAt: w.resets_at || null })
+    }
+  }
+  const notes = []
+  if (body.rate_limits_available === false) notes.push('이 계정은 사용량 한도 정보를 제공하지 않습니다 (API 키 사용 등)')
+  const extra = rl.extra_usage
+  if (extra && extra.is_enabled && Number.isFinite(extra.used_credits)) {
+    notes.push(`추가 사용 크레딧 ${money(extra.used_credits, extra.decimal_places, extra.currency)} 사용`)
+  }
+  const plan = typeof body.subscription_type === 'string' && body.subscription_type
+  return {
+    plan: plan ? `Claude ${plan[0].toUpperCase()}${plan.slice(1)}` : null,
+    groups: windows.length ? [{ name: null, windows }] : [],
+    notes
+  }
+}
+
+// `name: 대상 - ✔ Connected` / `- ✘ Failed to connect — 이유` / `- ! Needs authentication`
+// Why: 유니코드 터미널이 아니면(파이프로 받을 때 등) 표시가 `√`·`×`로 바뀌므로, 표시는 넓게 받고 상태 문구로 판단한다.
+const MCP_LINE_RE = /^(.+?): (.*) - (?:[✔✓√✘✗✖×!⚠‼]\s*)?((?:Connected|Failed|Needs|Pending|Connecting).*)$/iu
+
+function mcpStatus(text) {
+  if (/^needs auth/i.test(text)) return 'needs-auth'
+  if (/^connected/i.test(text)) return 'connected'
+  if (/^(pending|connecting)/i.test(text)) return 'pending'
+  return 'failed'
+}
+
+function parseMcpList(stdout) {
+  const servers = []
+  for (const line of String(stdout).split(/\r?\n/)) {
+    const m = line.trim().match(MCP_LINE_RE)
+    if (!m) continue
+    const [, name, rawTarget, text] = m
+    const typed = rawTarget.match(/^(.*) \((HTTP|SSE|stdio)\)$/i)
+    const status = mcpStatus(text)
+    const detail = status === 'failed' ? text.replace(/^Failed to connect\s*—?\s*/i, '').slice(0, 240) : ''
+    servers.push({
+      name,
+      type: typed ? typed[2].toLowerCase() : /^https?:/i.test(rawTarget) ? 'http' : 'stdio',
+      target: typed ? typed[1] : rawTarget,
+      status,
+      ...(detail ? { detail } : {})
+    })
+  }
+  return servers
 }
 
 function buildArgs({ sessionId, model, effort, permission }) {
@@ -193,6 +281,8 @@ module.exports = {
   binaryName: 'claude',
   models: MODELS,
   modelProbe: MODEL_PROBE,
+  usageProbe: USAGE_PROBE,
+  mcpProbe: MCP_PROBE,
   buildArgs,
   stdinPayload,
   buildEnv,

@@ -1,6 +1,7 @@
 // 입력창: 보낼 대상, 모델·노력·권한·핑퐁 메뉴, 보내기/멈추기.
 import { $, state, AGENTS, LABEL, OTHER, EFFORT_LABEL, api, isRunning, remember, savePrefs, toast } from './core.js'
 import { createDropdown } from './dropdown.js'
+import { parseMention } from './mention.js'
 import { renderAll } from './main.js'
 
 const PERMISSIONS = [
@@ -105,7 +106,6 @@ export function autosize() {
   input.style.height = Math.min(input.scrollHeight, Math.round(window.innerHeight * 0.4)) + 'px'
 }
 
-const MENTION = /^@(claude|클로드|agy|antigravity|안티그래비티|안티)\b[\s,:]*/i
 async function send() {
   const input = $('#input')
   let text = input.value.trim()
@@ -115,10 +115,10 @@ async function send() {
     return
   }
   let target = state.target
-  const m = text.match(MENTION)
-  if (m) {
-    target = /claude|클로드/i.test(m[1]) ? 'claude' : 'antigravity'
-    text = text.slice(m[0].length).trim()
+  const mention = parseMention(text)
+  if (mention) {
+    target = mention.agent
+    text = mention.text
     if (!text) return
   }
   if (!(state.agents[target] || {}).available) {

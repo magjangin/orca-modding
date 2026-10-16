@@ -34,10 +34,21 @@ function pickFolder(initial) {
   })
 }
 
+/** 탐색기 인자. 경로만 따옴표로 감싼다 (`/select,"C:\a b\c.txt"`). */
+function explorerArg(p, isDir) {
+  return isDir ? `"${p}"` : `/select,"${p}"`
+}
+
 /** 폴더는 탐색기로 열고, 파일은 탐색기에서 선택된 상태로 보여 준다. */
 function revealPath(p) {
-  if (isWin) detached('explorer.exe', fs.statSync(p).isDirectory() ? [p] : [`/select,${p}`])
-  else detached(process.platform === 'darwin' ? 'open' : 'xdg-open', [p])
+  if (!isWin) return detached(process.platform === 'darwin' ? 'open' : 'xdg-open', [p])
+  // Why: Node는 공백이 든 인자를 통째로 따옴표로 감싸("/select,C:\a b\c.txt") 넘기는데, 탐색기는 그걸
+  // /select 옵션으로 못 읽고 문서 폴더를 연다. 인자를 직접 만들어 그대로(verbatim) 넘긴다.
+  spawn('explorer.exe', [explorerArg(p, fs.statSync(p).isDirectory())], {
+    detached: true,
+    stdio: 'ignore',
+    windowsVerbatimArguments: true
+  }).unref()
 }
 
 function openUrl(url) {
@@ -45,4 +56,4 @@ function openUrl(url) {
   else detached(process.platform === 'darwin' ? 'open' : 'xdg-open', [url])
 }
 
-module.exports = { pickFolder, revealPath, openUrl }
+module.exports = { pickFolder, revealPath, openUrl, explorerArg }

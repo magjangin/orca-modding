@@ -12,6 +12,7 @@ if (require.main === module && dataArg) process.env.ORCA_DUO_DATA = dataArg.slic
 
 const store = require('./store')
 const { createAgentRegistry } = require('./agents')
+const { AGENT_IDS } = require('./agents/shared')
 const { createOrchestrator } = require('./orchestrator')
 const { HttpError, json, readBody, serveStatic } = require('./http')
 const desktop = require('./desktop')
@@ -161,6 +162,12 @@ function startServer({ port = 0, host = '127.0.0.1' } = {}) {
       store.saveSettings(settings)
       registry.detect()
       return json(res, 200, { settings, agents: registry.publicInfo() })
+    }
+
+    if (route === 'agents' && method === 'GET' && AGENT_IDS.includes(id)) {
+      const force = url.searchParams.get('refresh') === '1'
+      if (action === 'usage') return json(res, 200, await registry.fetchUsage(id, { force }))
+      if (action === 'mcp') return json(res, 200, await registry.fetchMcp(id, { cwd: url.searchParams.get('cwd'), force }))
     }
 
     if (route === 'pick-folder' && method === 'POST') {

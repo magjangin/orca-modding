@@ -113,6 +113,17 @@ export function fmtAgo(ts) {
   if (d < 86400 * 7) return `${Math.floor(d / 86400)}일 전`
   return new Date(ts).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
 }
+/** 앞으로 남은 시간 ("3시간 12분 후"). */
+export function fmtUntil(ts) {
+  const ms = new Date(ts).getTime() - Date.now()
+  if (!Number.isFinite(ms)) return ''
+  if (ms <= 60 * 1000) return '곧'
+  const m = Math.round(ms / 60000)
+  if (m < 60) return `${m}분 후`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}시간 ${m % 60}분 후`
+  return `${Math.floor(h / 24)}일 ${h % 24}시간 후`
+}
 export function toast(message, level = 'info') {
   const t = el(`<div class="toast ${level}">${esc(message)}</div>`)
   $('#toasts').appendChild(t)

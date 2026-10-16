@@ -50,6 +50,10 @@ Antigravity       : (view_file → replace_file_content) 버그를 수정했습�
   - 모델 목록은 각 CLI에서 직접 받아 버전이 붙은 이름으로 보여 줍니다 (`Opus 5.5`, `Sonnet 5.5`, `Gemini 4 Argon` …). 마지막 목록은 `models.json`에 저장해 다음 실행에서 바로 보입니다.
   - **노력**: 기본값 / 낮음 / 중간 / 높음 / 엑스트라 / 최대 — 고른 모델이 지원하는 단계만 나오고, 지원하지 않는 모델(예: Haiku 4.5)에서는 칸이 숨겨집니다.
   - Antigravity는 노력 단계가 모델 ID에 들어 있어(`…-low`·`-medium`·`-high`) 모델 칸에서 계열을, 노력 칸에서 단계를 고릅니다.
+- **사용량 · MCP 창** (사이드바 아래 `사용량 · MCP` 버튼 또는 에이전트 이름 클릭):
+  - **남은 사용량**: Claude는 5시간·주간 한도와 추가 크레딧(`get_usage` 제어 요청), Antigravity는 모델 그룹별 5시간·주간 한도(`agy -p /usage`). 둘 다 대화를 시작하지 않아 사용량을 쓰지 않습니다.
+  - **MCP 서버**: 지금 작업 폴더에서 쓸 수 있는 서버. Claude는 `claude mcp list`로 실제 연결까지 확인(연결됨/연결 실패/인증 필요), Antigravity는 `agy mcp list`의 켜짐/꺼짐 설정 상태.
+  - 결과는 1분간 기억하고, `새로 고침`을 누르면 다시 확인합니다.
 - **세분화된 권한 제어**:
   - **읽기 전용 (Plan)**: 파일 수정 없이 계획 및 분석만 수행
   - **편집 허용 (Edit)**: 파일 편집은 자동 승인, 셸/터미널 명령 실행은 제한
@@ -90,7 +94,7 @@ orca-modding/
 │   ├── runner.js      # CLI 프로세스 스폰, 스트림 파싱 및 taskkill 종료
 │   ├── store.js       # 대화·설정·모델 목록 저장 (%USERPROFILE%\.orca-duo\)
 │   └── agents/
-│       ├── index.js   # 에이전트 목록: CLI 찾기, 버전·모델 목록 확인
+│       ├── index.js   # 에이전트 목록: CLI 찾기, 버전·모델 목록·사용량·MCP 조회
 │       ├── shared.js  # 에이전트 이름, 노력 단계, 모델·노력 → CLI 인자 해석
 │       ├── binary.js  # 실행 파일 찾기 (npm .cmd 셈 → 실제 exe)
 │       ├── claude.js  # Claude Code 어댑터 (list_models로 모델 목록)
@@ -106,6 +110,8 @@ orca-modding/
 │   │   ├── composer.js# 입력창, 보낼 대상, 보내기/멈추기
 │   │   ├── dropdown.js# 모델·권한·핑퐁 펼침 메뉴
 │   │   ├── dialogs.js # 작업 폴더·설정 대화상자
+│   │   ├── status.js  # 사용량 · MCP 창
+│   │   ├── mention.js # `@claude`·`@클로드`·`@agy` 멘션 해석
 │   │   └── markdown.js# 의존성 없는 마크다운 렌더러
 │   └── css/           # base(토큰·공통) / layout / messages / markdown / composer / dialogs
 └── test/              # 녹화된 스트림 기반 파서 및 컨텍스트 전달 단위 테스트

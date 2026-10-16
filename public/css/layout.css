@@ -152,8 +152,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 3px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   font-size: 13px;
+  text-align: left;
+}
+.agent-line:hover {
+  background: var(--hover);
 }
 .agent-line .ver {
   margin-left: auto;
