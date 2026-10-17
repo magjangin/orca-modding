@@ -34,7 +34,7 @@ export function renderAgentStatus() {
 
 async function deleteConversation(id) {
   const c = state.conversations.find((x) => x.id === id)
-  if (!c || !confirm(`"${c.title}" 대화를 삭제할까요?\n\n(참고: CLI 에이전트 쪽 내부 세션 로그까지 비우려면 'Orca Duo 세션 및 캐시 정리.bat'를 실행하세요)`)) return
+  if (!c || !confirm(`"${c.title}" 대화를 삭제할까요?`)) return
   try {
     await api('DELETE', `/api/conversations/${id}`)
     dropConversation(id)
